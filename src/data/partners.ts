@@ -1,0 +1,22 @@
+
+export const partners = [
+    { name: "bentley", logo: "/images/bentley.webp" },
+    { name: "trustpilot", logo: "/images/trust.svg" },
+    // { name: "puma", logo: "/images/puma.png" },
+    { name: "rubix", logo: "/images/rubix.webp" },
+    { name: "salesforce", logo: "/images/salesforce.png" },
+    { name: "jpmorgan", logo: "/images/jp.webp" },
+    { name: "cocacola", logo: "/images/cola.webp" },
+    { name: "brio", logo: "/images/brio.webp"},
+    // { name: "bmw", logo: "/images/bmw.jpeg" },
+    { name: "walmart", logo: "/images/wallmart.png" },
+    { name: "Dr. Reddy's", logo: "/images/reddy.webp" },
+    { name: 'google', logo: '/images/google.webp' },
+    { name: 'dominos', logo: '/images/dominos.png' },
+    { name: 'amazon', logo: '/images/amazon.png' },
+    // { name: 'apple', logo: '/images/apple.png' },
+    // { name: 'meta', logo: '/images/meta.jpg' }/,
+    // { name: 'tesla', logo: '/images/tesla.png' },
+    // { name: 'uber', logo: '/images/uber.png' },
+    { name: 'sbi', logo: '/images/sbi.png' },
+  ];

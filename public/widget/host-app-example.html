@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CauseConn Sponsor Widget Host App Example</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f3f4f6;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #111827;
+            margin-bottom: 0.5rem;
+        }
+
+        p {
+            color: #6b7280;
+            margin-bottom: 2rem;
+        }
+
+        .code-block {
+            background: #1f2937;
+            color: #e5e7eb;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: monospace;
+            margin-bottom: 2rem;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Host App Integration Example</h1>
+        <p>This page simulates an external website (your host app on localhost:8080) embedding the CauseConn widget.</p>
+
+        <!-- 1. Container for the widget -->
+        <div id="causeconn-sponsor-widget" data-cause-id="" data-theme="light" data-width="100%"
+            data-min-height="600px">
+        </div>
+
+        <!-- 2. Integration Script -->
+        <!-- Pointing to the widget server (localhost:8085) -->
+        <script src="http://localhost:8085/widget/embed.js"></script>
+
+        <script>
+            // Event Listeners for Widget Interactions
+            window.addEventListener('causeconnSponsorSuccess', (e) => {
+                console.log('Sponsorship Successful:', e.detail);
+                alert(`Thank you! Sponsorship ID: ${e.detail.sponsorshipId}`);
+            });
+
+            window.addEventListener('causeconnStepChange', (e) => {
+                console.log('User moved to step:', e.detail.step);
+            });
+        </script>
+
+        <h3>Integration Code:</h3>
+        <div class="code-block">
+            &lt;!-- Container --&gt;
+            &lt;div id="causeconn-sponsor-widget"&gt;&lt;/div&gt;
+
+            &lt;!-- Script (pointing to the widget server) --&gt;
+            &lt;script src="http://localhost:8085/widget/embed.js"&gt;&lt;/script&gt;
+        </div>
+    </div>
+</body>
+
+</html>

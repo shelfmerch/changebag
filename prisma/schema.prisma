@@ -1,0 +1,26 @@
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Update your models to use MongoDB ID format
+model SystemSettings {
+  id                      String   @id @default(auto()) @map("_id") @db.ObjectId
+  siteName                String   @default("Tote Bag Platform")
+  siteDescription        String   @default("A platform for cause-based tote bag distribution")
+  supportEmail           String   @default("support@totebag.com")
+  maxCampaignsPerUser    Int      @default(5)
+  autoApprovalEnabled    Boolean  @default(false)
+  emailNotificationsEnabled Boolean @default(true)
+  maintenanceMode        Boolean  @default(false)
+  requireApprovalForClaims Boolean @default(true)
+  maxClaimsPerCampaign   Int      @default(1000)
+  shippingFee            Float    @default(0)
+  privacyPolicyUrl       String   @default("https://example.com/privacy")
+  termsOfServiceUrl      String   @default("https://example.com/terms")
+  updatedAt              DateTime @updatedAt
+}

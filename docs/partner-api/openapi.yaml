@@ -1,0 +1,276 @@
+openapi: 3.0.3
+info:
+  title: Changebag Partner API
+  version: "1.0.0"
+  description: |
+    Partner API for fetching causes from the Changebag database.
+
+servers:
+  - url: https://api.changebag.org
+    description: Production
+  - url: http://localhost:5000
+    description: Local development
+
+tags:
+  - name: Partner
+    description: Partner endpoints (some require API key)
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+    PartnerRegisterRequest:
+      type: object
+      required: [businessName, businessEmail, contactName]
+      properties:
+        businessName:
+          type: string
+        businessEmail:
+          type: string
+        contactName:
+          type: string
+
+    PartnerRegisterResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        apiKey:
+          type: string
+        partner:
+          type: object
+          properties:
+            id: { type: string }
+            businessName: { type: string }
+            businessEmail: { type: string }
+            contactName: { type: string }
+            isActive: { type: boolean }
+            rateLimitPerMinute: { type: number, nullable: true }
+            createdAt: { type: string, format: date-time }
+
+    PartnerMeResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        partner:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+            businessName:
+              type: string
+            businessEmail:
+              type: string
+            contactName:
+              type: string
+            isActive:
+              type: boolean
+            rateLimitPerMinute:
+              type: number
+              nullable: true
+            lastUsedAt:
+              type: string
+              format: date-time
+              nullable: true
+            createdAt:
+              type: string
+              format: date-time
+
+    PartnerCause:
+      type: object
+      properties:
+        causeId:
+          type: string
+        causeTitle:
+          type: string
+        description:
+          type: string
+        imageUrl:
+          type: string
+        category:
+          type: string
+        status:
+          type: string
+        isOnline:
+          type: boolean
+        totalTotes:
+          type: integer
+        claimedTotes:
+          type: integer
+        availableTotes:
+          type: integer
+        sponsorUrl:
+          type: string
+          description: Full Changebag URL for sponsor flow
+        claimUrl:
+          type: string
+          description: Full Changebag URL for claim flow
+        causeUrl:
+          type: string
+          description: Full Changebag URL for cause detail page
+        waitlistUrl:
+          type: string
+          description: Full Changebag URL for waitlist
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PartnerCausesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        count:
+          type: integer
+        causes:
+          type: array
+          items:
+            $ref: "#/components/schemas/PartnerCause"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+paths:
+  /api/partner/register:
+    post:
+      tags: [Partner]
+      summary: Register and receive an API key
+      description: |
+        Creates a partner record and returns an API key (treat it like a password).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PartnerRegisterRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerRegisterResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Partner already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /api/partner/me:
+    get:
+      tags: [Partner]
+      summary: Validate API key
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Partner metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerMeResponse"
+        "401":
+          description: Missing/invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  message:
+                    type: string
+                  retryAfterSeconds:
+                    type: integer
+
+  /api/partner/causes:
+    get:
+      tags: [Partner]
+      summary: Fetch causes
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: category
+          schema: { type: string }
+        - in: query
+          name: isOnline
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Paginated causes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PartnerCausesResponse"
+        "401":
+          description: Missing/invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                  message:
+                    type: string
+                  retryAfterSeconds:
+                    type: integer
+

@@ -1,0 +1,62 @@
+{
+  "name": "causeconnect-server",
+  "version": "1.0.0",
+  "description": "Backend server for CauseConnect application",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "npx tsc",
+    "start": "node -e \"try { require('./dist/index.js') } catch(e) { console.log('Compiled code not found, using ts-node instead'); require('ts-node/register'); require('./src/index.ts'); }\"",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "seed": "ts-node src/scripts/seedAdmin.ts",
+    "create-api-partner": "ts-node src/scripts/createApiPartner.ts",
+    "postinstall": "npm run build"
+  },
+  "keywords": [
+    "causeconnect",
+    "express",
+    "mongodb",
+    "typescript"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@stripe/react-stripe-js": "^3.7.0",
+    "@stripe/stripe-js": "^7.3.1",
+    "@types/multer": "^1.4.12",
+    "@types/nodemailer": "^6.4.14",
+    "@types/pdfkit": "^0.14.0",
+    "axios": "^1.9.0",
+    "bcryptjs": "^3.0.2",
+    "canvas": "^3.1.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.17.0",
+    "mongoose": "^8.15.0",
+    "multer": "^2.0.0",
+    "node-fetch": "^3.3.2",
+    "nodemailer": "^6.9.9",
+    "pdfkit": "^0.17.1",
+    "razorpay": "^2.9.6",
+    "sharp": "^0.34.2",
+    "stripe": "^18.2.1",
+    "ts-node": "^10.9.2",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/cors": "^2.8.18",
+    "@types/express": "^5.0.2",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/mongodb": "^4.0.6",
+    "@types/node": "^22.15.21",
+    "@types/nodemailer": "^6.4.17",
+    "pm2": "^6.0.8",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.8.3"
+  }
+}

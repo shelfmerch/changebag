@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Embed Widget Example - CauseConn</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: #f9fafb;
+        }
+
+        h1 {
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 2rem;
+        }
+
+        #causeconn-sponsor-widget {
+            margin: 2rem 0;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            background: white;
+        }
+
+        .success-message {
+            display: none;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border-radius: 12px;
+            margin-top: 2rem;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .success-message h2 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.5rem;
+        }
+
+        .success-message p {
+            margin: 0.25rem 0;
+            opacity: 0.95;
+        }
+
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            border-radius: 4px;
+        }
+
+        .info-box h3 {
+            margin: 0 0 0.5rem 0;
+            color: #1e40af;
+        }
+
+        .info-box p {
+            margin: 0;
+            color: #1e3a8a;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🎯 Sponsor a Cause</h1>
+    <p class="subtitle">Help us make a difference by sponsoring tote bags for our community.</p>
+
+    <div class="info-box">
+        <h3>How it works:</h3>
+        <p>Complete the sponsorship form below. Your contribution will directly support our cause and provide
+            sustainable tote bags to those in need.</p>
+    </div>
+
+    <!-- Widget Container -->
+    <div id="causeconn-sponsor-widget" data-cause-id="" data-api-key="" data-theme="light"></div>
+
+    <!-- Success Message -->
+    <div id="success-message" class="success-message">
+        <h2>✅ Thank you for your sponsorship!</h2>
+        <p><strong>Sponsorship ID:</strong> <span id="sponsorship-id"></span></p>
+        <p><strong>Amount:</strong> ₹<span id="sponsorship-amount"></span></p>
+        <p>We'll send you a confirmation email shortly with next steps.</p>
+    </div>
+
+    <!-- Load Widget Script -->
+    <script src="/widget/embed.js"></script>
+
+    <!-- Event Handlers -->
+    <script>
+        console.log('Widget embed example loaded');
+
+        // Handle widget ready
+        window.addEventListener('causeconnWidgetReady', () => {
+            console.log('✅ Widget is ready!');
+        });
+
+        // Handle successful sponsorship
+        window.addEventListener('causeconnSponsorSuccess', (event) => {
+            const { sponsorshipId, totalAmount, organizationName } = event.detail;
+
+            console.log('🎉 Sponsorship successful!', event.detail);
+
+            // Update success message
+            document.getElementById('sponsorship-id').textContent = sponsorshipId;
+            document.getElementById('sponsorship-amount').textContent = totalAmount.toLocaleString();
+            document.getElementById('success-message').style.display = 'block';
+
+            // Track with Google Analytics (if available)
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'sponsorship_complete', {
+                    value: totalAmount,
+                    currency: 'INR',
+                    transaction_id: sponsorshipId,
+                    items: [{
+                        item_name: 'Tote Sponsorship',
+                        item_brand: organizationName
+                    }]
+                });
+            }
+
+            // Scroll to success message
+            setTimeout(() => {
+                document.getElementById('success-message').scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+            }, 300);
+        });
+
+        // Handle errors
+        window.addEventListener('causeconnSponsorError', (event) => {
+            console.error('❌ Sponsorship error:', event.detail);
+            alert('Error: ' + event.detail.message + '\n\nPlease try again or contact support.');
+        });
+
+        // Track step changes for analytics
+        window.addEventListener('causeconnStepChange', (event) => {
+            console.log('📍 User is on step:', event.detail.step);
+
+            // Track funnel steps
+            if (typeof gtag !== 'undefined') {
+                gtag('event', 'sponsorship_step', {
+                    step_number: event.detail.step,
+                    step_name: getStepName(event.detail.step)
+                });
+            }
+        });
+
+        function getStepName(step) {
+            const steps = {
+                1: 'Tote Quantity',
+                2: 'Cause Selection',
+                3: 'Logo Upload',
+                4: 'Distribution Info',
+                5: 'Confirmation'
+            };
+            return steps[step] || 'Unknown';
+        }
+    </script>
+</body>
+
+</html>

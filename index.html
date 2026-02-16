@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Changebag – Sponsor a Cause</title>
+    <meta name="description" content="Changebag lets you sponsor meaningful causes and make an impact easily.">
+    <link rel="canonical" href="https://changebag.org/" />
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Changebag",
+  "url": "https://changebag.org",
+  "logo": "https://changebag.org/changebag.png",
+  "description": "Sponsor a cause and make a difference through Changebag."
+}
+</script>
+
+    <meta name="author" content="changebag" />
+    
+    <!-- Direct API Fix: Load before any other scripts to fix localhost:5000 references -->
+    <script>
+      // Inline script to immediately fix any localhost:5000 references
+      (function() {
+        console.log('Inline API Fix: Initializing...');
+        
+        // Only apply in production or on changebag.org
+        if (window.location.hostname !== 'localhost' && 
+            window.location.hostname !== '127.0.0.1' &&
+            !window.location.hostname.includes('localhost')) {
+          console.log('Inline API Fix: Running on production domain, applying fixes');
+          
+          // Override fetch and XHR
+          const originalFetch = window.fetch;
+          window.fetch = function(resource, options) {
+            if (typeof resource === 'string' && resource.includes('localhost:5000')) {
+              resource = resource.replace('http://localhost:5000', window.location.origin);
+              console.log('Inline API Fix: Redirected fetch to ' + resource);
+            }
+            return originalFetch.apply(this, arguments);
+          };
+          
+          const originalOpen = XMLHttpRequest.prototype.open;
+          XMLHttpRequest.prototype.open = function(method, url, async, user, password) {
+            if (typeof url === 'string' && url.includes('localhost:5000')) {
+              url = url.replace('http://localhost:5000', window.location.origin);
+              console.log('Inline API Fix: Redirected XHR to ' + url);
+            }
+            return originalOpen.apply(this, arguments);
+          };
+          
+          // Create global override
+          window.__API_URLS__ = {
+            apiUrl: window.location.origin + '/api',
+            uploadsUrl: window.location.origin + '/uploads'
+          };
+          
+          console.log('Inline API Fix: Initialization complete');
+        }
+      })();
+    </script>
+    
+    <!-- Load external API interceptor scripts -->
+    <script src="/direct-fix.js"></script>
+    <script src="/api-interceptor.js"></script>
+
+    <!-- MSG91 OTP Widget Script -->
+    <!-- <script type="text/javascript" src="https://verify.msg91.com/otp-provider.js"></script> -->
+
+    <meta property="og:title" content="changebag" />
+    <meta property="og:description" content="Sponsor a Cause" />
+    <meta property="og:type" content="website" />
+    <!-- <meta property="og:image" content="https://changebag.org/opengraph-image.png" /> -->
+
+    <!-- <meta name="twitter:card" content="summary_large_image" /> -->
+    <!-- <meta name="twitter:site" content="@causebags" /> -->
+    <!-- <meta name="twitter:image" content="https://changebag.org/opengraph-image.png" /> -->
+
+    <!-- Favicon Configuration -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/changebag.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/changebag.png">
+    <link rel="apple-touch-icon" href="/changebag.png">
+    <link rel="shortcut icon" href="/changebag.png">
+  </head>
+
+  <!-- Below is the Google tag for this account. Copy and paste it in the code of every page of your website, immediately after the <head> element. Don’t add more than one Google tag to each page. -->
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-MQZ5EJRKG1"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+    
+      gtag('config', 'G-MQZ5EJRKG1');
+    </script>
+
+  <body>
+    <div id="root"></div>
+    <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    <script type="module" src="/src/main.tsx"></script>
+    <noscript>
+      <p>Changebag helps you sponsor a cause and support impactful projects.</p>
+    </noscript>
+
+  </body>
+</html>

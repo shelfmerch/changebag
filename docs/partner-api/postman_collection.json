@@ -1,0 +1,80 @@
+{
+  "info": {
+    "name": "Changebag Partner API",
+    "_postman_id": "d2b7f6af-2b4a-4d91-a6a2-8b2a0b8d2e1c",
+    "description": "Partner API collection for fetching causes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Partner - Register (get API key)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"businessName\": \"Acme Inc\",\n  \"businessEmail\": \"dev@acme.com\",\n  \"contactName\": \"Jane Doe\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/partner/register",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "partner", "register"]
+        }
+      }
+    },
+    {
+      "name": "Partner - Me",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/partner/me",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "partner", "me"]
+        }
+      }
+    },
+    {
+      "name": "Partner - Causes (paginated)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{apiKey}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/partner/causes?page=1&limit=25",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "partner", "causes"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "25" }
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://api.changebag.org"
+    },
+    {
+      "key": "apiKey",
+      "value": "cb_REPLACE_ME"
+    }
+  ]
+}
+
