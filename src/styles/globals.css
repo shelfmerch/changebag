@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&family=Instrument+Serif:ital@0;1&display=swap');
+
+/* ═══════════════════════════════════════════════════
+   ChangeBag Global Styles
+   Import once in main.jsx / index.js
+   All component-level styles use CSS Modules
+═══════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--cream);
+  color: var(--ink);
+  overflow-x: hidden;
+}
+
+/* ── Premium Page Utilities ── */
+.premium-bg { background-color: var(--green-deep) !important; }
+.premium-text { color: var(--white) !important; }
+.premium-subtext { color: rgba(255,255,255,0.6) !important; }
+
+:root {
+  --green-deep:    #0d3d22;
+  --green-mid:     #1a6b3a;
+  --green-bright:  #2eb85c;
+  --green-light:   #c8f0d4;
+  --green-pale:    #e8f5ee;
+  --cream:         #f5f2eb;
+  --cream-dark:    #ede9e0;
+  --cream-darker:  #e4dfd4;
+  --ink:           #1a1a14;
+  --ink-mid:       #3d3d30;
+  --ink-soft:      #6b6b58;
+  --ink-faint:     #9b9b84;
+  --gold:          #d4a843;
+  --gold-light:    #f5e4b0;
+  --white:         #ffffff;
+  --serif:         'Instrument Serif', Georgia, serif;
+  --sans:          'DM Sans', sans-serif;
+  --nav-height:    64px;
+}
+
+/* ── Shared animations (used via className in components) ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes tickerScroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes pulseRing {
+  0%   { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-10px); }
+}
+
+/* ── Reveal on scroll (toggled by useScrollReveal hook) ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}

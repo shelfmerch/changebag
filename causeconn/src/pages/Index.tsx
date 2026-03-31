@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import axios from 'axios';
 import { getImageUrl, handleImageError } from '@/utils/imageUtils';
 import config from '@/config';
+import Ticker from '@/components/Ticker';
 
 interface Cause {
   _id: string;
@@ -115,6 +116,11 @@ const Index = () => {
     return cause.sponsorships?.some(s => s.status === 'approved') || false;
   };
   
+  // Check if the target amount has been achieved
+  const isTargetAchieved = (cause: Cause) => {
+    return (cause.currentAmount || 0) >= cause.targetAmount;
+  };
+  
   // Handle share button click
   const handleShareAction = (cause: Cause) => {
     // Create the share URL for the cause
@@ -161,7 +167,7 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             <div>
               <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                Thoughtful Partnerships for Negative Change
+                Thoughtful Partnerships for Positive Change
               </h1>
               <p className="text-xl text-gray-700 mb-8">
                 Connect your brand with causes that align with your values. 
@@ -184,6 +190,21 @@ const Index = () => {
                   Become a Sponsor
                 </Button>
               </div>
+
+              {/* Stats Section */}
+              <div className="mt-12 pt-8 border-t border-gray-200 grid grid-cols-2 md:grid-cols-4 gap-6">
+                {[
+                  { n: '80%', l: 'Lower CPM vs OOH' },
+                  { n: '50K+', l: 'Impressions per bag' },
+                  { n: '₹65M+', l: 'Ad value generated' },
+                  { n: '48h', l: 'Campaign live time' }
+                ].map((s) => (
+                  <div key={s.l}>
+                    <div className="text-3xl font-bold text-gray-900">{s.n}</div>
+                    <div className="text-xs text-gray-500 uppercase tracking-wider">{s.l}</div>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="relative">
               <img 
@@ -195,6 +216,8 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      <Ticker />
 
       {/* Featured Causes */}
       <section className="py-16">
@@ -276,22 +299,33 @@ const Index = () => {
                         </span>
                       </div>
                     </div>
-                    {hasApprovedSponsorship(cause) ? (
-                      <Button 
-                        onClick={() => navigate(`/claim/${cause._id}`)} 
-                        className="w-full bg-black text-white"
-                      >
-                        Claim a Tote
-                      </Button>
-                    ) : (
-                      <Button 
-                        onClick={() => navigate(`/cause/${cause._id}`)} 
-                        className="w-full"
-                        variant="outline"
-                      >
-                        See Details
-                      </Button>
-                    )}
+                    <div className="space-y-3">
+                      {hasApprovedSponsorship(cause) ? (
+                        <Button 
+                          onClick={() => navigate(`/claim/${cause._id}?source=direct&ref=home-page`)} 
+                          className="w-full bg-black text-white"
+                        >
+                          Claim a Tote
+                        </Button>
+                      ) : (
+                        <Button 
+                          onClick={() => navigate(`/waitlist/${cause._id}`)} 
+                          className="w-full"
+                          variant="outline"
+                        >
+                          Join Waitlist
+                        </Button>
+                      )}
+                      
+                      {!isTargetAchieved(cause) && (
+                        <Button 
+                          onClick={() => navigate(`/sponsor/new?causeId=${cause._id}`)} 
+                          className="w-full bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          Sponsor This Cause
+                        </Button>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               ))

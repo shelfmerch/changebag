@@ -25,6 +25,10 @@ import WhySponsorPage from "./pages/WhySponsor";
 import WhyClaimPage from "./pages/WhyClaim";
 import LogoReuploadPage from "./pages/sponsor/LogoReupload";
 import { CsrPage } from "./pages/CsrPage";
+import Brands from "./pages/Brands";
+import NGOs from "./pages/NGOs";
+import Impact from "./pages/Impact";
+import Pricing from "./pages/Pricing";
 
 // Legal & Support Pages
 import HelpCenter from "./pages/HelpCenter";
@@ -128,6 +132,10 @@ const App: React.FC = () => {
                 <Route path="/demo/number-input" element={<NumberInputDemo />} />
 
                 {/* Public Information Pages */}
+                <Route path="/brands" element={<Brands />} />
+                <Route path="/ngos" element={<NGOs />} />
+                <Route path="/impact" element={<Impact />} />
+                <Route path="/pricing" element={<Pricing />} />
                 <Route path="/why-sponsor" element={<WhySponsorPage />} />
                 <Route path="/why-claim" element={<WhyClaimPage />} />
                 <Route path="/csr" element={<CsrPage />} />

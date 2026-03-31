@@ -10,12 +10,12 @@ const PrivacyPolicy = () => {
       content: [
         {
           subtitle: "Personal Information",
-          text: "We collect information you provide directly to us, such as when you create an account, create a cause, sponsor a cause, or contact us for support. This may include your name, email address, phone number, and any other information you choose to provide."
+          text: "We collect information you provide directly to us, such as when you create an account, sponsor a cause, or contact us for support. This may include your name, email address, phone number, and any other information you choose to provide."
         },
-        {
-          subtitle: "Cause Information",
-          text: "When you create a cause, we collect information about the cause including title, description, target amount, category, and any images you upload. This information is used to display your cause on our platform and facilitate sponsorships."
-        },
+        // {
+        //   subtitle: "Cause Information",
+        //   text: "When you create a cause, we collect information about the cause including title, description, target amount, category, and any images you upload. This information is used to display your cause on our platform and facilitate sponsorships."
+        // },
         {
           subtitle: "Usage Information",
           text: "We automatically collect certain information about your use of our services, including your IP address, browser type, operating system, pages visited, and time spent on those pages. This helps us improve our services and provide better user experience."

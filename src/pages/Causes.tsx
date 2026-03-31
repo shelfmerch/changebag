@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Layout from '@/components/Layout';
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -14,15 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { getImageUrl, handleImageError } from '@/utils/imageUtils';
 import config from '@/config';
 import axios, { AxiosResponse } from 'axios';
+import s from './Causes.module.css';
+// import Ticker from '../components/Ticker';
 
 
 
@@ -55,8 +52,6 @@ const CausesPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [categories, setCategories] = useState<string[]>([]);
-  const [selectedCause, setSelectedCause] = useState<Cause | null>(null);
-  const [isWidgetOpen, setIsWidgetOpen] = useState(false);
 
   // Helper functions - moved to the top
   const isTargetAchieved = (cause: Cause) => {
@@ -170,8 +165,7 @@ const CausesPage = () => {
 
   // Handle sponsor button click
   const handleSponsorAction = (cause: Cause) => {
-    setSelectedCause(cause);
-    setIsWidgetOpen(true);
+    navigate(`/sponsor/new?causeId=${cause._id}`);
   };
 
   // Get the details/claim button based on sponsorship status
@@ -275,41 +269,30 @@ const CausesPage = () => {
   const sortedCauses = [...filteredCauses].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return (
-    <Layout>
-      <div className="relative bg-gradient-to-br from-green-600 via-green-300 to-white min-h-[400px]">
-        {/* Subtle pattern overlay */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.3' fill-rule='evenodd'%3E%3Ccircle cx='3' cy='3' r='1'/%3E%3C/g%3E%3C/svg%3E")`,
-            backgroundSize: '20px 20px'
-          }}></div>
-        </div>
-
-        <div className="container mx-auto px-4 py-20 relative z-10">
-          <div className="text-center">
-            {/* Discover & Support button in top right */}
-            <div className="flex justify-center mb-8">
-              <div className="inline-flex items-center gap-2 bg-black/90 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-white border border-white/20 shadow-lg">
-                <Search className="h-4 w-4" />
-                Discover & Support
-              </div>
-            </div>
-
-            {/* Main title and subtitle */}
-            <h1 className="text-5xl md:text-6xl font-bold text-gray-800 mb-6">
-              Browse <span className="text-green-500">Causes</span>
+    <>
+      <Navbar />
+      {/* Hero Section */}
+      <section className={s.hero}>
+        <div className={s.heroNoise} /><div className={s.heroGrid} /><div className={s.heroGlow} />
+        <div className={`${s.heroInner} ${s.container}`}>
+          <div className={s.heroContent}>
+            <div className={`${s.heroTag} fade-up`}><div className={s.tagDot} /><span>Explore Impact</span></div>
+            <h1 className={`${s.heroH1} fade-up`} style={{ animationDelay: '0.1s' }}>
+              Browse <em>Causes.</em>
             </h1>
-            <p className="text-xl text-gray-800 max-w-2xl mx-auto leading-relaxed">
-              Find and support causes aligned with your organization's values.
-              Every sponsorship creates real impact.
+            <p className={`${s.heroSub} fade-up`} style={{ animationDelay: '0.22s' }}>
+              Find and support causes aligned with your organization's values. 
+              <strong>Every sponsorship creates real, measurable impact</strong> across communities in India.
             </p>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div className="container mx-auto px-4 -mt-8 relative z-20">
+      {/* <Ticker /> */}
+
+      <div className={`${s.container} ${s.filterSection}`}>
         {/* Enhanced Filters section */}
-        <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 mb-8">
+        <div className={s.filterCard}>
           <div className="flex items-center gap-3 mb-6">
             <Filter className="h-5 w-5 text-green-600" />
             <h3 className="text-lg font-semibold text-gray-900">Refine Your Search</h3>
@@ -423,7 +406,7 @@ const CausesPage = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className={`${s.container} py-12`}>
         {loading ? (
           <div className="flex justify-center items-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -436,72 +419,54 @@ const CausesPage = () => {
             <Button onClick={() => window.location.reload()}>Try Again</Button>
           </div>
         ) : filteredCauses.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className={`${s.causesGrid} py-8`}>
             {filteredCauses.map((cause) => (
-              <Card key={cause._id} className="overflow-hidden hover:shadow-lg transition-shadow">
+              <div key={cause._id} className={s.card}>
                 <div
-                  className="cursor-pointer"
+                  className={s.cardImg}
                   onClick={() => navigate(`/cause/${cause._id}`)}
                   title={`View details for ${cause.title}`}
                 >
                   <img
                     src={getImageUrl(cause.imageUrl)}
                     alt={cause.title}
-                    className="w-full h-48 object-cover hover:opacity-90 transition-opacity"
                     onError={(e) => handleImageError(e)}
                   />
-                </div>
-                <CardContent className="p-6">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-xl font-semibold">{cause.title}</h3>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="p-1 h-auto"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleShareAction(cause);
-                        }}
-                        title="Share this cause"
-                      >
-                        <Share2 className="h-4 w-4 text-gray-500 hover:text-primary" />
-                      </Button>
-                    </div>
-                    <span className="bg-primary-100 text-primary-800 text-xs px-2 py-1 rounded-full">
+                  <div className="absolute top-4 left-4">
+                    <span className="bg-white/90 backdrop-blur-sm text-green-700 text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-widest shadow-sm">
                       {cause.category}
                     </span>
                   </div>
-                  <p className="text-gray-600 mb-4">
+                </div>
+                <div className={s.cardBody}>
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className={s.cardTitle}>{cause.title}</h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="p-1 h-auto"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleShareAction(cause);
+                      }}
+                      title="Share this cause"
+                    >
+                      <Share2 className="h-4 w-4 text-gray-400 hover:text-green-600 transition-colors" />
+                    </Button>
+                  </div>
+                  <p className={s.cardDesc}>
                     {cause.description.length > 120
                       ? `${cause.description.substring(0, 120)}...`
                       : cause.description}
                   </p>
 
-                  {/* <div className="mb-4">
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
-                      <div 
-                        className="bg-primary-600 h-2.5 rounded-full" 
-                        style={{ width: `${Math.min(((cause.currentAmount || 0) / cause.targetAmount) * 100, 100)}%` }}
-                      ></div>
-                    </div>
-                    <div className="flex justify-between mt-2">
-                      <span className="text-sm text-gray-500">
-                      ₹{(cause.currentAmount || 0).toLocaleString()} raised
-                      </span>
-                      <span className="text-sm text-gray-500">
-                      ₹{cause.targetAmount.toLocaleString()} goal
-                      </span>
-                    </div>
-                  </div> */}
-
-                  <div className="space-y-3">
+                  <div className="space-y-3 mt-auto">
                     {getDetailsOrClaimButton(cause)}
                     {getSponsorOrWaitlistButton(cause)}
                     {getWaitlistButton(cause)}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             ))}
           </div>
         ) : (
@@ -518,22 +483,8 @@ const CausesPage = () => {
         )}
       </div>
 
-      <Dialog open={isWidgetOpen} onOpenChange={setIsWidgetOpen}>
-        <DialogContent className="max-w-6xl h-[90vh] p-0 overflow-hidden bg-white border-0">
-          <DialogHeader className="hidden">
-            <DialogTitle>Sponsor Cause</DialogTitle>
-          </DialogHeader>
-          {selectedCause && (
-            <iframe
-              src={`http://localhost:8085/widget/sponsor?causeId=${selectedCause._id}&theme=light`}
-              className="w-full h-full border-0"
-              title="Sponsor Widget"
-              allow="payment"
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-    </Layout>
+      <Footer />
+    </>
   );
 };
 

@@ -18,18 +18,22 @@ const DashboardLayout = ({ children, title, subtitle }: DashboardLayoutProps) =>
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold">{title}</h1>
-            {subtitle && <p className="text-gray-600 mt-1">{subtitle}</p>}
+      <div className="pt-20 min-h-screen bg-gray-50/50">
+        <div className="container mx-auto px-4 md:px-8 py-10">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold font-serif text-gray-900 tracking-tight">{title}</h1>
+              {subtitle && <p className="text-lg text-gray-500 mt-2 font-medium">{subtitle}</p>}
+            </div>
+            {/* <Button variant="outline" onClick={() => logout()} className="border-gray-200 hover:bg-white hover:text-red-600 transition-all">
+              Sign Out
+            </Button> */}
           </div>
-          <Button variant="outline" onClick={() => logout()}>
-            Sign Out
-          </Button>
-        </div>
 
-        {children}
+          <main className="pb-16">
+            {children}
+          </main>
+        </div>
       </div>
     </Layout>
   );
