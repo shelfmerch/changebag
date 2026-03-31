@@ -13,10 +13,10 @@ const HelpCenter = () => {
       category: "Getting Started",
       icon: <Zap className="h-5 w-5" />,
       items: [
-        {
-          question: "How do I create a cause?",
-          answer: "To create a cause, click on 'Create a Cause' in the navigation menu. You'll need to provide details about your cause, including title, description, target amount, and category. Make sure to upload an image that represents your cause effectively."
-        },
+        // {
+        //   question: "How do I create a cause?",
+        //   answer: "To create a cause, click on 'Create a Cause' in the navigation menu. You'll need to provide details about your cause, including title, description, target amount, and category. Make sure to upload an image that represents your cause effectively."
+        // },
         {
           question: "How do I sponsor a cause?",
           answer: "Browse through available causes and click 'Sponsor This Cause' on any cause you'd like to support. You'll be guided through the sponsorship process where you can set your budget and choose distribution channels."
