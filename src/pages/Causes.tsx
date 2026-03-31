@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -48,6 +49,7 @@ interface Cause {
 const CausesPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -165,11 +167,29 @@ const CausesPage = () => {
 
   // Handle claim button click
   const handleClaimAction = (cause: Cause) => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please login to claim a tote.",
+        variant: "destructive",
+      });
+      navigate('/login', { state: { from: { pathname: `/claim/${cause._id}`, search: '?source=direct&ref=causes-page' } } });
+      return;
+    }
     navigate(`/claim/${cause._id}?source=direct&ref=causes-page`);
   };
 
   // Handle sponsor button click
   const handleSponsorAction = (cause: Cause) => {
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please login to sponsor a cause.",
+        variant: "destructive",
+      });
+      navigate('/login', { state: { from: { pathname: `/causes` } } });
+      return;
+    }
     setSelectedCause(cause);
     setIsWidgetOpen(true);
   };
@@ -179,7 +199,7 @@ const CausesPage = () => {
     if (hasApprovedSponsorship(cause)) {
       return (
         <Button
-          onClick={() => navigate(`/claim/${cause._id}?source=direct&ref=causes-page`)}
+          onClick={() => handleClaimAction(cause)}
           className="w-full bg-black text-white"
         >
           Claim a Tote

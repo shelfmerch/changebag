@@ -1,251 +1,295 @@
-
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/components/ui/use-toast';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '119905627719-f7slrnitrpphqv28t7lc6049schg3qm3.apps.googleusercontent.com';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login, register } = useAuth();
+  const location = useLocation();
+  const { requestOtp, verifyOtp, completeRegistration, googleLogin: handleGoogleAuth } = useAuth();
   const { toast } = useToast();
   
-  // Login state
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  
-  // Register state
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [name, setName] = useState('');
-  const [role, setRole] = useState('sponsor');
-  const [isRegLoading, setIsRegLoading] = useState(false);
+  const from = location.state?.from?.pathname ? location.state.from.pathname + (location.state.from.search || '') : location.state?.from || null;
 
-  const handleLogin = async (e: React.FormEvent) => {
+  // Step state: 1: Identifier, 2: OTP, 3: Name
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [identifier, setIdentifier] = useState('');
+  const [otp, setOtp] = useState('');
+  const [name, setName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Determine redirection after successful login/register
+  const handleRedirect = (role?: string) => {
+    if (from) {
+      navigate(from);
+    } else if (role === 'sponsor') {
+      navigate('/dashboard/sponsor');
+    } else if (role === 'claimer' || role === 'user') {
+      navigate('/dashboard/claimer');
+    } else if (role === 'admin') {
+      navigate('/dashboard/admin');
+    } else {
+      navigate('/');
+    }
+  };
+
+  const handleIdentifierSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!identifier) return;
+
     setIsLoading(true);
-    
     try {
-      const result = await login(email, password);
+      const result = await requestOtp(identifier);
       if (result.success) {
-        toast({
-          title: "Login Successful",
-          description: "Welcome back!",
-        });
-        
-        // Redirect based on user role
-        if (result.role === 'sponsor') {
-          navigate('/dashboard/sponsor');
-        } else if (result.role === 'claimer') {
-          navigate('/dashboard/claimer');
-        } else if (result.role === 'admin') {
-          navigate('/dashboard/admin/');
-        } else {
-          navigate('/');
-        }
+        toast({ title: "OTP Sent", description: result.message || "Please check your email or phone." });
+        setStep(2);
       } else {
-        toast({
-          title: "Login Failed",
-          description: "Invalid email or password. Please try again.",
-          variant: "destructive"
-        });
+        toast({ title: "Failed", description: result.message || "Could not send OTP.", variant: "destructive" });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "An error occurred during login",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "Network error occurred", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsRegLoading(true);
-    
+    if (!otp) return;
+
+    setIsLoading(true);
     try {
-      const result = await register(regEmail, name, regPassword, role as any);
+      const result = await verifyOtp(identifier, otp);
       if (result.success) {
-        toast({
-          title: "Registration Successful",
-          description: "Your account has been created!",
-        });
+        toast({ title: "Verified", description: result.message || "OTP verified successfully." });
         
-        // Redirect based on user role
-        if (role === 'sponsor') {
-          navigate('/dashboard/sponsor');
-        } else if (role === 'claimer') {
-          navigate('/dashboard/claimer');
-        } else if (role === 'admin') {
-          navigate('/dashboard/admin');
+        if (result.isNewUser) {
+          // Move to name collection step
+          setStep(3);
         } else {
-          navigate('/');
+          // Logged in
+          handleRedirect(result.role);
         }
       } else {
-        toast({
-          title: "Registration Failed",
-          description: "Please check your information and try again.",
-          variant: "destructive"
-        });
+        toast({ title: "Error", description: result.message || "Invalid OTP.", variant: "destructive" });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "An error occurred during registration",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "Network error occurred", variant: "destructive" });
     } finally {
-      setIsRegLoading(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handleNameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name) return;
+
+    setIsLoading(true);
+    try {
+      const result = await completeRegistration(identifier, name);
+      if (result.success) {
+        toast({ title: "Welcome!", description: "Account created successfully." });
+        handleRedirect(result.role);
+      } else {
+        toast({ title: "Error", description: result.message || "Could not create account.", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Network error occurred", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onGoogleSuccess = async (credentialResponse: any) => {
+    setIsLoading(true);
+    try {
+      if (!credentialResponse.credential) throw new Error("Missing Google Credential");
+      const result = await handleGoogleAuth(credentialResponse.credential);
+      if (result.success) {
+        toast({ title: "Logged In", description: "Google Authentication successful!" });
+        handleRedirect(result.role);
+      } else {
+        toast({ title: "Error", description: result.message || "Google Authentication failed.", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Network error occurred during Google sign in", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-primary-50 p-4">
-      <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <Link to="/" className="text-2xl font-bold text-primary-800 flex items-center justify-center">
-            <span className="mr-2">🤲</span>
-            <span>Changebag</span>
-          </Link>
-        </div>
-        
-        <Card>
-          <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid grid-cols-2 w-full">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">Register</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="login">
-              <CardContent className="p-6">
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="your@email.com"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
-                      required
-                    />
-                  </div>
-                  
-                  <Button
-                    type="submit"
-                    disabled={isLoading}
-                    className="w-full"
-                  >
-                    {isLoading ? "Logging in..." : "Login"}
-                  </Button>
-                </form>
-              </CardContent>
-            </TabsContent>
-            
-            <TabsContent value="register">
-              <CardContent className="p-6">
-                <form onSubmit={handleRegister} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="regEmail">Email</Label>
-                    <Input
-                      id="regEmail"
-                      type="email"
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder="your@email.com"
-                      required
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Your Name"
-                      required
-                    />
-                  </div>
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <div className="min-h-screen bg-[#e8f5e9] flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-sm">
+          <div className="mb-6 flex items-center justify-center gap-2 text-[32px] font-semibold text-[#6d8a35]">
+            <span className="text-2xl">🤲</span>
+            <span className="italic text-[#5f7d2b]">Changebag</span>
+          </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="regPassword">Password</Label>
-                    <Input
-                      id="regPassword"
-                      type="password"
-                      value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
-                      placeholder="Create a password"
-                      required
-                    />
+          <div className="rounded-2xl border border-[#e8ecd9] bg-white px-5 py-6 shadow-sm">
+            <div className="mb-6 grid grid-cols-2 rounded-md bg-[#f5f5f5] p-1 text-sm">
+              <div className="rounded bg-white py-2 text-center font-medium text-black shadow-sm">
+                Login
+              </div>
+              <div className="py-2 text-center text-gray-500">
+                Register
+              </div>
+            </div>
+
+            <div className="mb-5">
+              <h2 className="text-center text-lg font-semibold text-gray-900">
+                {step === 1 ? 'Login' : step === 2 ? 'Verify OTP' : 'Complete Registration'}
+              </h2>
+              {step === 2 && (
+                <p className="mt-2 text-center text-sm text-gray-500">
+                  We sent an OTP to {identifier}
+                </p>
+              )}
+              {step === 3 && (
+                <p className="mt-2 text-center text-sm text-gray-500">
+                  You verified {identifier}. What should we call you?
+                </p>
+              )}
+            </div>
+
+            {step === 1 && (
+              <form onSubmit={handleIdentifierSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="identifier" className="text-sm font-medium text-gray-800">
+                    Email or mobile number
+                  </Label>
+                  <Input
+                    id="identifier"
+                    type="text"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    placeholder="Enter email or phone"
+                    className="h-11 border-gray-200 bg-[#f7f9ff] shadow-none focus-visible:ring-0"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={isLoading || !identifier}
+                  className="h-11 w-full rounded-md bg-[#12182b] text-white hover:bg-[#0e1424]"
+                >
+                  {isLoading ? "Sending..." : "Continue"}
+                </Button>
+
+                <div className="relative py-3">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-gray-200" />
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="role">I want to join as a:</Label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        type="button"
-                        variant={role === 'sponsor' ? "default" : "outline"}
-                        onClick={() => setRole('sponsor')}
-                        className="w-full"
-                      >
-                        Sponsor
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={role === 'claimer' ? "default" : "outline"}
-                        onClick={() => setRole('claimer')}
-                        className="w-full"
-                      >
-                        Claimer
-                      </Button>
-                    </div>
-                    <p className="text-sm text-gray-500 mt-2">
-                      {role === 'sponsor' 
-                        ? "As a sponsor, you can support causes with financial contributions." 
-                        : "As a claimer, you can request sponsorship for your causes."}
-                    </p>
+                  <div className="relative flex justify-center text-[11px] uppercase tracking-[0.2em]">
+                    <span className="bg-white px-3 text-gray-400">or continue with</span>
                   </div>
-                  
+                </div>
+
+                <div className="flex justify-center">
+                  <GoogleLogin
+                    onSuccess={onGoogleSuccess}
+                    onError={() => toast({ title: "Google Sign-In Failed", variant: "destructive" })}
+                    useOneTap
+                    shape="rectangular"
+                    theme="outline"
+                    size="large"
+                    text="signin_with"
+                    width="100%"
+                  />
+                </div>
+
+                <div className="pt-2 text-center text-xs leading-relaxed text-gray-500">
+                  By continuing, you agree to Changebag's <Link to="/terms" className="text-blue-600 hover:underline">Conditions of Use</Link> and <Link to="/privacy" className="text-blue-600 hover:underline">Privacy Notice</Link>.
+                </div>
+              </form>
+            )}
+
+            {step === 2 && (
+              <form onSubmit={handleOtpSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="otp" className="text-sm font-medium text-gray-800">
+                    Enter 6-digit OTP
+                  </Label>
+                  <Input
+                    id="otp"
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    placeholder="123456"
+                    className="h-11 border-gray-200 bg-[#f7f9ff] text-center tracking-[0.4em] shadow-none focus-visible:ring-0"
+                    maxLength={6}
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setStep(1)}
+                    disabled={isLoading}
+                    className="h-11 rounded-md border-gray-200 text-gray-700"
+                  >
+                    Back
+                  </Button>
                   <Button
                     type="submit"
-                    disabled={isRegLoading}
-                    className="w-full"
+                    disabled={isLoading || otp.length < 4}
+                    className="h-11 rounded-md bg-[#12182b] text-white hover:bg-[#0e1424]"
                   >
-                    {isRegLoading ? "Creating Account..." : "Create Account"}
+                    {isLoading ? "Verifying..." : "Verify"}
                   </Button>
-                </form>
-              </CardContent>
-            </TabsContent>
-          </Tabs>
-          
-          <CardFooter className="p-6 pt-0 text-center">
-            <Button variant="link" onClick={() => navigate('/')}>
-              Back to Home
-            </Button>
-          </CardFooter>
-        </Card>
+                </div>
+              </form>
+            )}
+
+            {step === 3 && (
+              <form onSubmit={handleNameSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-sm font-medium text-gray-800">
+                    Full Name
+                  </Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter your name"
+                    className="h-11 border-gray-200 bg-[#f7f9ff] shadow-none focus-visible:ring-0"
+                    required
+                    disabled={isLoading}
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={isLoading || !name}
+                  className="h-11 w-full rounded-md bg-[#12182b] text-white hover:bg-[#0e1424]"
+                >
+                  {isLoading ? "Creating..." : "Create Account"}
+                </Button>
+              </form>
+            )}
+
+            <div className="mt-6 text-left">
+              <Link to="/" className="text-sm text-[#12182b] hover:underline">
+                Back to Home
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </GoogleOAuthProvider>
   );
 };
 
