@@ -1,0 +1,28 @@
+.ticker {
+  background: var(--green-mid);
+  overflow: hidden;
+  padding: 12px 0;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.track {
+  display: flex;
+  width: max-content;
+  animation: tickerScroll 32s linear infinite;
+}
+.item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 28px;
+  border-right: 1px solid rgba(255,255,255,0.15);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.8);
+  white-space: nowrap;
+}
+.num { color: var(--green-light); font-weight: 600; }
+.dot {
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: var(--green-light);
+}

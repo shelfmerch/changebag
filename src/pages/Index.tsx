@@ -1,1307 +1,945 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Layout from '@/components/Layout';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, Heart, Target, Sparkles, Users, Search, Star, TrendingUp, Share2 } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
-import axios from 'axios';
-import config from '@/config';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { getImageUrl, handleImageError } from '@/utils/imageUtils';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { faqs } from '@/data/faqs';
+'use client';
 
-interface Cause {
-  _id: string;
-  title: string;
-  description: string;
-  category: string;
-  status: string;
-  currentAmount: number;
-  targetAmount: number;
-  sponsorships?: Array<{ status: string }>;
-  imageUrl?: string; // Added for featured causes
-  createdAt: string;
+import React, {
+  useEffect, useRef, useState, useCallback, type FC,
+} from 'react';
+import { Link } from 'react-router-dom';
+import Navbar from '../components/Navbar';
+import s from './Index.module.css';
+import { useNavigate } from 'react-router-dom';
+
+// ─────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────
+interface BagConfig {
+  bag: string; shade: string; dark: string; accent: string;
+  l1: string; l2: string; m1: string; m2: string; ngo: string;
+}
+type BagKey = 'indigo' | 'forest' | 'saffron';
+
+interface CalcState {
+  bags: number;
+  impressions: string;
+  plastic: string;
+  co2: string;
+  donation: string;
+  cities: string;
+  cpm: string;
+  bagLabel: string;
+  impLabel: string;
+  plasticLabel: string;
 }
 
-const HERO_IMAGE = "/images/zero.jpg"; // Placeholder, replace with actual illustration if available
-
-const stats = [
-  { number: "1.2M+", label: "Bags in Circulation" },
-  { number: "2M+", label: "People Reached" },
-  { number: "3000+", label: "Campaign Locations" },
-  { number: "100+", label: "Brand Collaborations" },
+// ─────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────
+const TICKER_ITEMS = [
+  { num: '1.2M+', text: 'bags distributed' },
+  { num: 'NDTV · Outlook · HT · ET', text: 'Featured in' },
+  { num: '10,400 KG', text: 'CO₂ reduced' },
+  { num: 'Indian Army · IndianOil · Dr. Agarwals', text: 'Trusted by' },
+  { num: '500', text: 'plastic bags replaced per tote' },
+  { num: '₹65M+', text: 'ad value generated' },
+  { num: '200K+', text: 'citizens engaged' },
 ];
 
-const marketingMethods = [
+const BAGS: Record<BagKey, BagConfig> = {
+  indigo:  { bag: '#dde5f5', shade: '#b8c8e8', dark: '#8aa0cc', accent: '#1a3c8f', l1: 'AQUA', l2: 'CORP', m1: 'Save Water,', m2: 'Save Life', ngo: 'ChangeBag × Water Aid India' },
+  forest:  { bag: '#d8ead0', shade: '#aecca0', dark: '#88aa78', accent: '#0d3d22', l1: 'ECO', l2: 'BRAND', m1: 'Plant More', m2: 'Trees Today', ngo: 'ChangeBag × Green Mission India' },
+  saffron: { bag: '#fdebd8', shade: '#f5cfa8', dark: '#e0a870', accent: '#c45000', l1: 'VIDYA', l2: 'CO.', m1: 'Every Child', m2: 'Deserves School', ngo: 'ChangeBag × Pratham Foundation' },
+};
+
+const CAUSES = [
   {
-    method: "Billboard (1 Month)",
-    impressions: "4-8 lakh",
-    duration: "30 Days",
-    cpm: "₹15-₹125",
-    engagement: "Passive Viewing",
-    sustainability: "❌ None",
-    icon: "📺"
+    _id: '6867ca8e3d40d2af0eb2f3ad',
+    img: 'https://images.unsplash.com/photo-1448375240586-882707db888b?w=800&auto=format&fit=crop&q=80',
+    alt: 'Forest trees',
+    title: 'Plant More Trees',
+    cat: 'Environment', catClass: 'catEnv' as const,
+    desc: 'India lost over 1.2 million hectares of forest cover from 2001–2020 due to deforestation and urban expansion. With air pollution levels among the worst globally, urban forests are critical for climate resilience, biodiversity, and clean air...',
+    buttons: [{ label: 'Claim a Tote', variant: 'black' as const }],
   },
   {
-    method: "Digital Ads (Google, FB, IG)",
-    impressions: "20-30 lakh",
-    duration: "2-3 Weeks",
-    cpm: "₹33",
-    engagement: "Click-Based, Temporary",
-    sustainability: "❌ None",
-    icon: "💻"
+    _id: '6867c9813d40d2af0eb2f3a8',
+    img: 'https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=800&auto=format&fit=crop&q=80',
+    alt: 'Hands and water',
+    title: 'Save Water Save Life',
+    cat: 'Environment', catClass: 'catEnv' as const,
+    desc: 'India is facing a severe water crisis — 600 million people live in areas of high to extreme water stress. 21 major cities, including Delhi, Bengaluru, and Chennai, are projected to run out of groundwater by 2030...',
+    buttons: [
+      { label: 'Claim a Tote', variant: 'black' as const },
+      { label: 'Sponsor This Cause', variant: 'green' as const },
+    ],
   },
   {
-    method: "TV/Print Ads (Single Run)",
-    impressions: "5-20 lakh",
-    duration: "1 Day/One-Time",
-    cpm: "₹50-₹75",
-    engagement: "Short-Term Visibility",
-    sustainability: "❌ None",
-    icon: "📺"
+    _id: '6867c7bd3d40d2af0eb2f326',
+    img: 'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=800&auto=format&fit=crop&q=80',
+    alt: 'Mental health',
+    title: 'Mental Health Matters',
+    cat: 'Healthcare', catClass: 'catHealth' as const,
+    desc: 'India has one of the largest mental health burdens globally — more than 200 million people suffer from depression, anxiety, and other disorders. Yet mental health remains deeply stigmatised, with less than 1 psychiatrist per 100,000 people...',
+    buttons: [
+      { label: 'Sponsor This Cause', variant: 'green' as const },
+      { label: 'Join Waitlist', variant: 'outline' as const },
+    ],
   },
-  {
-    method: "Event Sponsorships",
-    impressions: "3-10 lakh",
-    duration: "1-2 Days",
-    cpm: "₹15-₹125",
-    engagement: "Temporary Engagement",
-    sustainability: "❌ None",
-    icon: "🎪"
-  },
-  {
-    method: "Change Bag Tote Sponsorship",
-    impressions: "1 Crore+ (10K Bags x 1K uses)",
-    duration: "Years (Long-Term)",
-    cpm: "₹8-₹15 (Lowest)",
-    engagement: "Direct, High Retention",
-    sustainability: "✅ High (Plastic-Free, Reusable)",
-    icon: "🛍️",
-    highlighted: true
-  }
 ];
 
-
-const benefits = [
+const TESTIMONIALS = [
   {
-    icon: <Heart className="h-8 w-8 text-red-400" />,
-    title: "Own Your Space",
-    description: "Put your brand in people’s hands and everyday life."
+    quote: 'The campaign gave us a visible, physical presence in communities we had never reached through digital or OOH. People were carrying our brand into markets and homes for months.',
+    name: 'CSR Head', role: 'IndianOil Corporation Ltd.',
+    tag: 'Green Mission Campaign', bg: '#1a3c6b', initials: 'IO',
+    delay: '0s',
   },
   {
-    icon: <Target className="h-8 w-8 text-red-400" />,
-    title: "Targeted Reach",
-    description: "Engage audiences that share your values."
+    quote: 'We saw recruitment enquiry spikes in cities 3 weeks after bag distribution. The connection between a physical touchpoint and a digital response was something we had not expected.',
+    name: 'Campaign Director', role: 'Indian Army Recruitment',
+    tag: 'Join Indian Army Campaign', bg: '#2d2d24', initials: 'IA',
+    delay: '0.1s',
   },
   {
-    icon: <Sparkles className="h-8 w-8 text-red-400" />,
-    title: "Sustainable Visibility",
-    description: "Stay seen through eco-friendly campaigns that last."
+    quote: 'Conversion from bag QR scan to clinic appointment was something we did not expect at all. It became our most efficient community acquisition channel in both pilot cities.',
+    name: 'Marketing Head', role: 'Dr. Agarwals Eye Care',
+    tag: 'Digital Detox Campaign', bg: '#0d3d22', initials: 'DA',
+    delay: '0.2s',
   },
-  {
-    icon: <Users className="h-8 w-8 text-red-400" />,
-    title: "Trackable Results",
-    description: "Get real-time insights and campaign performance metrics."
-  }
 ];
 
-const journeySteps = [
-  {
-    id: "step1",
-    step: "1",
-    title: "Sponsor a Cause",
-    description: "Browse dozens of local causes that need your help.",
-    // image: "https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=500&h=300&fit=crop",
-    image: "/images/sponsor.png",
-    imageAlt: "People browsing causes on laptop"
-  },
-  {
-    id: "step2", 
-    step: "2",
-    title: "Upload Your Logo",
-    description: "Add your brand identity to the cause page.",
-    // image: "https://images.unsplash.com/photo-1611224923853-80b023f02d71?w=500&h=300&fit=crop",
-    image: "/images/uplaod.png",
-    imageAlt: "Brand logo design on computer"
-  },
-  {
-    id: "step3",
-    step: "3", 
-    title: "Choose Where to Distribute",
-    description: "Select from multiple campaign channels.",
-    // image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500&h=300&fit=crop",
-    image: "/images/distrib.png",
-    imageAlt: "Distribution channels and social media"
-  },
-  {
-    id: "step4",
-    step: "4",
-    title: "Track Your Reach & Impact",
-    description: "Get detailed analytics on your campaign's success.",
-    // image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=500&h=300&fit=crop",
-    image: "/images/crack.png",
-    imageAlt: "Analytics dashboard showing impact metrics"
-  }
+const NGO_CARDS = [
+  { bg: '#e8f5ee', icon: '🎁', title: 'Zero cost, full visibility', body: "No budget required. Your NGO's message and branding appear on every bag distributed under your partnered campaigns." },
+  { bg: '#fff8e6', icon: '💰', title: '₹10 per bag — direct to your cause', body: "A portion of every sponsorship is donated directly to your organisation. At 10,000 bags, that's ₹1 lakh with no fundraising effort." },
+  { bg: '#e6f0ff', icon: '📣', title: 'Everyday awareness', body: 'Citizens become walking ambassadors for your cause. Every time the bag is used, your message travels somewhere new.' },
+  { bg: '#fce8e8', icon: '🤝', title: 'Co-branded campaigns', body: 'Joint storytelling with the sponsoring brand builds credibility and brings your cause to their entire customer audience.' },
 ];
 
-const testimonials = [
-  {
-    id: 1,
-    name: "Ayesha Sharma",
-    role: "Environmental Activist",
-    avatar: "https://i.pravatar.cc/150?u=ayesha-sharma",
-    content: "This initiative has transformed how our community thinks about plastic waste. The tote bags are not just practical but also beautiful conversation starters about sustainability.",
-    rating: 5,
-    company: "EcoSaarthi Foundation"
-  },
-  {
-    id: 2,
-    name: "Arjun Mehta",
-    role: "Corporate Sustainability Manager",
-    avatar: "https://i.pravatar.cc/150?u=arjun-mehta",
-    content: "As a corporate partner, we've seen incredible engagement from our employees. The transparency in how funds are used and the regular impact updates make this partnership truly meaningful.",
-    rating: 5,
-    company: "GreenTech India"
-  },
-  {
-    id: 3,
-    name: "Priya Patel",
-    role: "Local Business Owner",
-    avatar: "https://i.pravatar.cc/150?u=priya-patel",
-    content: "I've been using these tote bags in my store for months now. Customers love them and often ask about the cause behind them. It's a win-win for business and the environment.",
-    rating: 5,
-    company: "Organic Bazaar"
-  },
-  {
-    id: 4,
-    name: "Rohan Verma",
-    role: "Community Leader",
-    avatar: "https://i.pravatar.cc/150?u=rohan-verma",
-    content: "The impact on our local community has been remarkable. We've reduced plastic waste by 40% and created awareness about environmental issues. This is exactly what we needed.",
-    rating: 5,
-    company: "Neighborhood Association India"
-  },
-  {
-    id: 5,
-    name: "Neha Gupta",
-    role: "School Principal",
-    avatar: "https://i.pravatar.cc/150?u=neha-gupta",
-    content: "Our students are excited about the environmental lessons we've integrated using these tote bags. It's a practical way to teach sustainability and community responsibility.",
-    rating: 5,
-    company: "Green Valley School, Mumbai"
-  },
-  {
-    id: 6,
-    name: "Rajesh Kumar",
-    role: "Restaurant Owner",
-    avatar: "https://i.pravatar.cc/150?u=rajesh-kumar",
-    content: "We switched to these tote bags for our takeaway orders and our customers appreciate the eco-friendly approach. It's helped us build a stronger connection with our community.",
-    rating: 5,
-    company: "Spice Garden Restaurant"
-  }
+const COMPARE_TRADITIONAL = [
+  'Impressions last seconds, then gone',
+  '₹3–8 cost per impression (OOH)',
+  'No emotional connection to cause',
+  'Unmeasurable real-world results',
+  'Zero environmental benefit',
+  'Does not qualify for CSR reporting',
+  'No brand ambassador creation',
 ];
 
-const partners = [
-  { name: "bentley", logo: "/images/bentley.webp" },
-  { name: "trustpilot", logo: "/images/trust.svg" },
-  { name: "brio", logo: "/images/brio.webp"},
-  // { name: "puma", logo: "/images/puma.png" },
-  { name: "rubix", logo: "/images/rubix.webp" },
-  // { name: "salesforce", logo: "/images/salesforce.png" },
-  { name: "jpmorgan", logo: "/images/jp.webp" },
-  { name: "cocacola", logo: "/images/cola.webp" },
-  // { name: "bmw", logo: "/images/bmw.jpeg" },
-  // { name: "walmart", logo: "/images/wallmart.png" },
-  { name: "Dr. Reddy's", logo: "/images/reddy.webp" },
-  { name: 'google', logo: '/images/google.webp' },
-  // { name: 'dominos', logo: '/images/dominos.png' },
-  // { name: 'amazon', logo: '/images/amazon.png' },
-  // { name: 'apple', logo: '/images/apple.png' },
-  // { name: 'meta', logo: '/images/meta.jpg' },
-  // { name: 'tesla', logo: '/images/tesla.png' },
-  { name: 'sbi', logo: '/images/sbi.png' },
+const COMPARE_CHANGEBAG = [
+  { text: '200+ uses per bag = 50,000+ lifetime impressions', hl: true },
+  { text: '₹0.04–0.08 cost per impression', hl: true },
+  { text: 'Carried by believers of your cause', hl: false },
+  { text: 'Real-time dashboard: scans, reach, geography', hl: false },
+  { text: '500+ plastic bags replaced per tote', hl: false },
+  { text: 'ESG impact report for board & SEBI filing', hl: true },
+  { text: '50K+ organic brand ambassadors nationwide', hl: false },
 ];
 
-const steps = [
-  {
-    number: "01",
-    icon: <Search className="h-8 w-8" />,
-    title: "Join the Movement",
-    description: "Sign up or scan at partner locations to receive your free ChangeBag."
-  },
-  {
-    number: "02",
-    icon: <Heart className="h-8 w-8" />,
-    title: "Pick a Purpose",
-    description: "Choose a cause that matters — from clean cities to greener living"
-  },
-  {
-    number: "03",
-    icon: <TrendingUp className="h-8 w-8" />,
-    title: "Carry your Bag",
-    description: "Use it daily. Each tote replaces plastic and carries a story of purpose."
-  },
-  {
-    number: "04",
-    icon: <Share2 className="h-8 w-8" />,
-    title: "Share Your Impact",
-    description: "Tag or scan your bag to see your impact and inspire others."
-  }
+const STEPS = [
+  { n: '1', title: 'Choose your cause', body: 'Register on the platform, pick a social cause that aligns with your brand values — environment, education, health, national service.' },
+  { n: '2', title: 'Set your campaign', body: 'Select quantity, target geography, and distribution timeline. Upload your logo and brand message. Get a live price instantly.' },
+  { n: '3', title: 'We handle everything', body: 'Design, production, logistics, and hyperlocal distribution to markets, campuses, and communities — end to end.' },
+  { n: '4', title: 'Track live impact', body: 'Your real-time dashboard shows QR scans, impressions, geographic spread, and the ESG impact report for your board.' },
 ];
 
-const Index = () => {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [causes, setCauses] = useState<Cause[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [featuredCauses, setFeaturedCauses] = useState<Cause[]>([]);
-  const [featuredLoading, setFeaturedLoading] = useState(true);
-  const [featuredError, setFeaturedError] = useState('');
-  
+const FEATURES = [
+  { icon: '📍', title: 'Mobile billboards in real communities', body: "Your brand travels to vegetable markets, railway stations, college campuses, and housing colonies — places outdoor advertising can't reach." },
+  { icon: '📈', title: 'Real-time impact dashboard', body: 'Track QR scans, impressions, city-wise distribution, and citizen engagement as it happens. Export the ESG report in one click.' },
+  { icon: '⚡', title: 'Plug-and-play activation', body: 'Upload logo, choose cause, confirm budget. We handle design, production, and national distribution. No agency needed.' },
+  { icon: '🎯', title: 'CSR & ESG compliance built-in', body: 'Every campaign generates a certified impact report aligned with SEBI ESG disclosure norms — ready for your annual report and board presentation.' },
+];
+
+// ─────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────
+function fmtIndian(n: number): string {
+  if (n >= 10_000_000) return `${(n / 10_000_000).toFixed(n % 10_000_000 === 0 ? 0 : 1)} Crore+`;
+  if (n >= 100_000) return `${(n / 100_000).toFixed(n % 100_000 === 0 ? 0 : 1)} Lakh`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n % 1_000 === 0 ? 0 : 1)}K`;
+  return String(n);
+}
+function fmtMoney(n: number): string {
+  if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(1)} Cr`;
+  if (n >= 100_000) return `₹${(n / 100_000).toFixed(1)} L`;
+  if (n >= 1_000) return `₹${Math.round(n / 1_000)},000`;
+  return `₹${n}`;
+}
+function citiesFromBags(b: number): string {
+  if (b <= 500) return '1 city';
+  if (b <= 2_000) return '1–2 cities';
+  if (b <= 5_000) return '2–4 cities';
+  if (b <= 10_000) return '4–8 cities';
+  if (b <= 25_000) return '10–20 cities';
+  if (b <= 50_000) return '25–50 cities';
+  return '100+ cities';
+}
+function calcCPM(b: number): string {
+  if (b >= 50_000) return '₹0.03';
+  if (b >= 10_000) return '₹0.05';
+  return '₹0.06';
+}
+function formatBagCount(b: number): string {
+  if (b >= 100_000) return '1 Lakh';
+  if (b >= 1_000) return `${(b / 1_000).toFixed(b % 1_000 === 0 ? 0 : 1)},000`;
+  return String(b);
+}
+function computeCalc(bags: number): CalcState {
+  const imp = bags * 200;
+  const pl = bags * 500;
+  const co2 = bags * 27.5;
+  const don = bags * 10;
+  return {
+    bags,
+    impressions: fmtIndian(imp),
+    plastic: fmtIndian(pl),
+    co2: co2 >= 1_000 ? `${(co2 / 1_000).toFixed(1)} Tonnes` : `${Math.round(co2)} KG`,
+    donation: fmtMoney(don),
+    cities: citiesFromBags(bags),
+    cpm: calcCPM(bags),
+    bagLabel: bags >= 100_000 ? '1 lakh bags' : `${fmtIndian(bags)} bags`,
+    impLabel: `${fmtIndian(imp)} people`,
+    plasticLabel: `${fmtIndian(pl)} plastic bags`,
+  };
+}
+
+// Build SVG tote bag string
+function buildToteSVG(k: BagKey): string {
+  const c = BAGS[k];
+  return `<svg width="290" height="370" viewBox="0 0 290 370" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="bg${k}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${c.bag}"/><stop offset="100%" stop-color="${c.shade}"/></linearGradient>
+  <linearGradient id="sg${k}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${c.dark}"/><stop offset="100%" stop-color="${c.shade}"/></linearGradient>
+  <filter id="sh${k}"><feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="rgba(0,0,0,0.18)"/></filter>
+  <clipPath id="cl${k}"><path d="M45 96 L245 96 L264 360 L26 360 Z"/></clipPath>
+</defs>
+<path d="M97 96 C97 96 85 50 99 22 C106 8 119 2 135 4 C151 6 159 20 155 38 C151 56 145 76 145 96" stroke="url(#sg${k})" stroke-width="13" stroke-linecap="round" fill="none"/>
+<path d="M149 96 C149 96 161 50 147 22 C140 8 127 2 111 4 C95 6 87 20 91 38 C95 56 101 76 101 96" stroke="url(#sg${k})" stroke-width="13" stroke-linecap="round" fill="none"/>
+<path d="M45 96 L245 96 L264 360 L26 360 Z" fill="url(#bg${k})" filter="url(#sh${k})"/>
+<path d="M26 360 L45 96 L68 96 L49 360 Z" fill="${c.dark}" opacity="0.22"/>
+<path d="M264 360 L245 96 L222 96 L241 360 Z" fill="${c.dark}" opacity="0.18"/>
+<rect x="41" y="90" width="208" height="12" rx="3" fill="${c.dark}" opacity="0.38"/>
+<g clip-path="url(#cl${k})" opacity="0.16">
+  <line x1="26" y1="140" x2="264" y2="140" stroke="${c.dark}" stroke-width="0.6"/>
+  <line x1="26" y1="188" x2="264" y2="188" stroke="${c.dark}" stroke-width="0.6"/>
+  <line x1="26" y1="236" x2="264" y2="236" stroke="${c.dark}" stroke-width="0.6"/>
+  <line x1="26" y1="284" x2="264" y2="284" stroke="${c.dark}" stroke-width="0.6"/>
+  <line x1="26" y1="332" x2="264" y2="332" stroke="${c.dark}" stroke-width="0.6"/>
+</g>
+<g clip-path="url(#cl${k})">
+  <rect x="92" y="110" width="106" height="50" rx="7" fill="${c.accent}" opacity="0.1"/>
+  <text x="145" y="130" font-family="DM Sans,sans-serif" font-size="12" font-weight="700" fill="${c.accent}" text-anchor="middle" letter-spacing="2.5">${c.l1}</text>
+  <text x="145" y="148" font-family="DM Sans,sans-serif" font-size="12" font-weight="700" fill="${c.accent}" text-anchor="middle" letter-spacing="2.5">${c.l2}</text>
+  <text x="145" y="109" font-family="DM Sans,sans-serif" font-size="7" font-weight="600" fill="${c.accent}" text-anchor="middle" opacity="0.4" letter-spacing="1">&#x2460; BRAND LOGO</text>
+  <line x1="72" y1="175" x2="218" y2="175" stroke="${c.accent}" stroke-width="0.8" opacity="0.2"/>
+  <text x="145" y="196" font-family="Instrument Serif,Georgia,serif" font-size="18" fill="${c.accent}" text-anchor="middle" font-style="italic">${c.m1}</text>
+  <text x="145" y="218" font-family="Instrument Serif,Georgia,serif" font-size="18" fill="${c.accent}" text-anchor="middle" font-style="italic">${c.m2}</text>
+  <text x="145" y="188" font-family="DM Sans,sans-serif" font-size="7" font-weight="600" fill="${c.accent}" text-anchor="middle" opacity="0.38" letter-spacing="1">&#x2461; CAUSE MESSAGE</text>
+  <g transform="translate(62,242)">
+    <rect width="48" height="48" rx="5" fill="white" opacity="0.88"/>
+    <rect x="5" y="5" width="13" height="13" rx="1" fill="${c.accent}" opacity="0.85"/><rect x="7" y="7" width="3" height="3" fill="white"/>
+    <rect x="30" y="5" width="13" height="13" rx="1" fill="${c.accent}" opacity="0.85"/><rect x="32" y="7" width="3" height="3" fill="white"/>
+    <rect x="5" y="30" width="13" height="13" rx="1" fill="${c.accent}" opacity="0.85"/><rect x="7" y="32" width="3" height="3" fill="white"/>
+    <rect x="22" y="22" width="4" height="4" fill="${c.accent}" opacity="0.7"/>
+    <rect x="28" y="22" width="4" height="4" fill="${c.accent}" opacity="0.7"/>
+    <rect x="34" y="22" width="4" height="4" fill="${c.accent}" opacity="0.7"/>
+    <rect x="22" y="28" width="4" height="4" fill="${c.accent}" opacity="0.7"/>
+    <rect x="34" y="28" width="4" height="4" fill="${c.accent}" opacity="0.7"/>
+    <rect x="28" y="34" width="4" height="4" fill="${c.accent}" opacity="0.7"/>
+    <rect x="34" y="34" width="4" height="4" fill="${c.accent}" opacity="0.7"/>
+  </g>
+  <text x="86" y="241" font-family="DM Sans,sans-serif" font-size="7" font-weight="600" fill="${c.accent}" text-anchor="middle" opacity="0.35" letter-spacing="1">&#x2462; QR</text>
+  <text x="120" y="255" font-family="DM Sans,sans-serif" font-size="8" font-weight="500" fill="${c.accent}" opacity="0.38">Scan to learn more</text>
+  <text x="120" y="267" font-family="DM Sans,sans-serif" font-size="7" fill="${c.accent}" opacity="0.25">changebag.org/campaign</text>
+  <text x="145" y="336" font-family="DM Sans,sans-serif" font-size="7.5" font-weight="500" fill="${c.accent}" text-anchor="middle" opacity="0.48">${c.ngo}</text>
+  <text x="145" y="327" font-family="DM Sans,sans-serif" font-size="6.5" font-weight="600" fill="${c.accent}" text-anchor="middle" opacity="0.3" letter-spacing="1">&#x2463; NGO CO-BRAND</text>
+</g>
+<ellipse cx="145" cy="360" rx="118" ry="6" fill="${c.dark}" opacity="0.25"/>
+</svg>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Custom hooks
+// ─────────────────────────────────────────────────────────────────────
+
+/** Adds `visible` class when element enters viewport (threshold 0.12) */
+function useScrollReveal() {
   useEffect(() => {
-    const fetchFeaturedCauses = async () => {
-      try {
-        setFeaturedLoading(true);
-        const response = await axios.get(`${config.apiUrl}/causes`, {
-          params: { 
-            status: 'approved',
-            include: 'sponsorships',
-            limit: 3,
-            featured: true,
-            isOnline: true
-          }
-        });
-        setFeaturedCauses(response.data.slice(0, 3));
-      } catch (err) {
-        setFeaturedError('Failed to load featured causes.');
-      } finally {
-        setFeaturedLoading(false);
-      }
-    };
-    fetchFeaturedCauses();
+    const observer = new IntersectionObserver(
+      (entries) => entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add(s.visible); observer.unobserve(e.target); } }),
+      { threshold: 0.12 },
+    );
+    const timer = setTimeout(() => {
+      document.querySelectorAll(`.${s.reveal}`).forEach((el) => observer.observe(el));
+    }, 50);
+    return () => { clearTimeout(timer); observer.disconnect(); };
   }, []);
+}
 
-
-    // --- MOCK PAGE ROUTES LOGIC ---
-  // Define the mock page routes
-  // const mockPageRoutes = [
-  //   "/mock/Page3",
-  //   "/mock/Page5",
-  //   "/mock/Page6",
-  //   "/mock/Page4",
-  //   "/mock/Page2",
-  //   "/mock/Page3",
-  // ];
-
-  // Sort causes by createdAt descending and get the 6 most recent
-  const sortedCauses = [...featuredCauses].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  // const mostRecentCauses = sortedCauses.slice(0, mockPageRoutes.length);
-
-  // Map cause _id to mock page route
-  // const causeIdToMockPage: Record<string, string> = {};
-  // mostRecentCauses.forEach((cause, idx) => {
-  //   causeIdToMockPage[cause._id] = mockPageRoutes[idx];
-  // });
-  
+/** Adds `scrolled` class to nav when scrollY > 10 */
+function useNavShadow(navRef: React.RefObject<HTMLElement>) {
   useEffect(() => {
-    const fetchCauses = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get(`${config.apiUrl}/causes`, {
-          params: { status: 'approved', include: 'sponsorships', limit: 12 }
-        });
-        // Only show causes that are unsponsored (no sponsorships or all sponsorships not approved)
-        const unsponsored = response.data.filter((cause: Cause) =>
-          !cause.sponsorships || !cause.sponsorships.some(s => s.status === 'approved')
-        ).slice(0, 3);
-        setCauses(unsponsored);
-      } catch (err) {
-        setError('Failed to load causes.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCauses();
-  }, []);
-  
-  // --- Section Components ---
+    const fn = () => navRef.current?.classList.toggle(s.scrolled, window.scrollY > 10);
+    window.addEventListener('scroll', fn, { passive: true });
+    return () => window.removeEventListener('scroll', fn);
+  }, [navRef]);
+}
 
-  // Hero Section
-  const HeroSection = () => (
-    <section className="relative overflow-hidden bg-gradient-to-br from-green-50 via-white to-emerald-50 py-20 lg:py-24">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 bg-gradient-to-r from-green-100/10 to-emerald-100/10"></div>
-      <div className="absolute top-0 left-0 w-64 h-64 bg-green-200/20 rounded-full -translate-x-32 -translate-y-32 animate-pulse"></div>
-      <div className="absolute bottom-0 right-0 w-80 h-80 bg-emerald-200/20 rounded-full translate-x-40 translate-y-40 animate-pulse" style={{animationDelay: '1s'}}></div>
-      <div className="absolute top-1/2 left-1/4 w-32 h-32 bg-green-300/20 rounded-full animate-bounce" style={{animationDelay: '0.5s'}}></div>
-      
-      <div className="relative z-10 max-w-7xl mx-auto px-6">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-3 rounded-full text-sm font-medium shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                Sponsor Change – Make an Impact
-              </div>
-              <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 leading-tight">
-                A New-Age Medium for Real-World Branding{" "}
-                <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                No more TV ads, billboards, or print ads.
-                </span>
-              </h1>
-            </div>
-            
-            <p className="text-xl text-gray-600 leading-relaxed max-w-2xl">
-            ChangeBag turns everyday bags into sustainable, high-visibility campaigns - where your brand is carried, seen, and remembered.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button 
-                className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-8 py-4 text-lg rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1" 
-                onClick={() => navigate('/causes')}
-              >  
-                Start Sponsoring
-              </Button>
-              <Button 
-                variant="outline"
-                className="border-2 border-green-600 text-green-600 hover:bg-green-50 px-8 py-4 text-lg rounded-xl font-semibold transition-all duration-300 hover:border-green-700"
-                onClick={() => navigate('/why-sponsor')}
-              >
-                Learn More
-              </Button>
-            </div>
-            
-            {/* Trust indicators */}
-            {/* <div className="flex items-center gap-8 pt-4">
-              <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-md">
-                <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium text-gray-700">Trusted by 300+ Brands</span>
-              </div>
-              <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-md">
-                <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse" style={{animationDelay: '0.5s'}}></div>
-                <span className="text-sm font-medium text-gray-700">1M+ Impressions</span>
-              </div>
-            </div> */}
+// ─────────────────────────────────────────────────────────────────────
+// Sub-components
+// ─────────────────────────────────────────────────────────────────────
+
+const Ticker: FC = () => {
+  const doubled = [...TICKER_ITEMS, ...TICKER_ITEMS];
+  return (
+    <div className={s.ticker}>
+      <div className={s.tickerTrack}>
+        {doubled.map((item, i) => (
+          <span key={i} className={s.tickerItem}>
+            <span className={s.tickerNum}>{item.num}</span>
+            {item.text}
+            <span className={s.tickerDot} />
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const TrustedBy: FC = () => (
+  <div className={s.trusted}>
+    <div className={s.container}>
+      <p className={s.trustedLabel}>Trusted by brands &amp; institutions</p>
+      <div className={s.trustedLogos}>
+        {[
+          { name: 'IndianOil', type: 'PSU · Energy' },
+          { name: 'Indian Army', type: 'Government' },
+          { name: 'Dr. Agarwals', type: 'Healthcare' },
+        ].map((b) => (
+          <div key={b.name} className={s.trustedLogo}>
+            <div className={s.trustedLogoName}>{b.name}</div>
+            <div className={s.trustedLogoType}>{b.type}</div>
           </div>
-          
-          <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-br from-green-500/20 to-emerald-500/20 rounded-3xl blur-2xl group-hover:blur-3xl transition-all duration-500"></div>
-            <div className="relative bg-white rounded-3xl shadow-2xl border border-green-100 overflow-hidden transform group-hover:scale-105 transition-all duration-500">
-              <img 
-                src={HERO_IMAGE} 
-                alt="Woman holding a sustainable no plastic bag"
-                className="w-full h-auto object-cover group-hover:scale-110 transition-transform duration-700"
+        ))}
+        <div className={`${s.trustedLogo} ${s.trustedLogoDashed}`}>
+          <div className={s.trustedLogoName} style={{ color: 'var(--ink-soft)' }}>Your Brand</div>
+          <div className={s.trustedLogoType}>Could be here</div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// Impact calculator component
+const ImpactCalculator: FC<{ onContact: () => void }> = ({ onContact }) => {
+  const PRESET_VALUES = [500, 5000, 10000, 50000, 100000];
+  const [calc, setCalc] = useState<CalcState>(() => computeCalc(5000));
+
+  const handleSlider = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setCalc(computeCalc(parseInt(e.target.value)));
+  }, []);
+  const handlePreset = useCallback((v: number) => { setCalc(computeCalc(v)); }, []);
+
+  return (
+    <section className={`${s.impactCalc} ${s.section}`} id="impact">
+      <div className={s.container}>
+        <div className={`${s.calcHeader} ${s.reveal}`}>
+          <p className={s.sectionLabel} style={{ color: 'rgba(255,255,255,0.45)' }}>Your campaign potential</p>
+          <h2 className={s.calcHeading}>See the impact <em>before you spend a rupee.</em></h2>
+          <p className={s.calcSub}>Move the slider to your bag count. We'll show you exactly what your campaign will achieve.</p>
+        </div>
+
+        <div className={`${s.calcBody} ${s.reveal}`} style={{ transitionDelay: '0.12s' }}>
+          {/* Slider */}
+          <div className={s.calcSliderPanel}>
+            <div className={s.calcSliderTop}>
+              <span className={s.calcSliderLabel}>How many bags do you want to sponsor?</span>
+              <span className={s.calcCount}>{formatBagCount(calc.bags)}</span>
+            </div>
+            <div className={s.calcSliderWrap}>
+              <input
+                type="range" id="calc-slider"
+                className={s.calcSlider}
+                min="500" max="100000" step="500"
+                value={calc.bags}
+                onChange={handleSlider}
               />
-              <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg">
-                <span className="text-sm font-medium text-gray-800">Sustainable Impact</span>
-              </div>
-              <div className="absolute top-4 right-4 bg-green-600 text-white px-3 py-1 rounded-full text-xs font-medium shadow-lg">
-                Eco-Friendly
+              <div className={s.calcSliderTicks}>
+                {['500', '25K', '50K', '75K', '1L'].map((t) => <span key={t}>{t}</span>)}
               </div>
             </div>
-            
-            {/* Floating elements around the image */}
-            <div className="absolute -top-4 -left-4 bg-yellow-400 text-white px-3 py-1 rounded-full text-xs font-medium shadow-lg animate-bounce">
-              Free Totes
+            <div className={s.calcPresets}>
+              {PRESET_VALUES.map((v) => (
+                <button
+                  key={v}
+                  className={`${s.calcPreset} ${calc.bags === v ? s.active : ''}`}
+                  onClick={() => handlePreset(v)}
+                >
+                  {v === 100000 ? '1 Lakh bags' : `${v >= 1000 ? `${v / 1000},000` : v} bags`}
+                </button>
+              ))}
             </div>
-            <div className="absolute -bottom-4 -right-4 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-medium shadow-lg animate-bounce" style={{animationDelay: '0.5s'}}>
-              Brand Visibility
-            </div>
           </div>
-        </div>
-      </div>
-    </section>
-  );
 
-  // const RaiseFundsSection=()=>(
-  //   <section className="bg-[#f8faf8] py-16 px-8">
-  //     <div className="max-w-6xl mx-auto">
-  //       <div className="grid md:grid-cols-2 gap-12 items-center">
-  //         <div className="space-y-6">
-  //           <h1 className="text-5xl md:text-6xl font-bold text-gray-800 leading-tight">
-  //             Raise funds for your cause!
-  //           </h1>
-            
-  //           <p className="text-lg text-gray-600 leading-relaxed">
-  //             Onboard on Give.do and create impact by raising funds for your initiatives
-  //           </p>
-            
-  //           <div className="flex flex-col sm:flex-row gap-4 pt-4">
-  //             <Button size="lg" className="bg-green-500 hover:bg-green-600 text-white text-base px-8 py-3 rounded-lg">
-  //               Enroll your NGO on give
-  //             </Button>
-  //             <Button size="lg" variant="outline" className="border-gray-400 text-gray-700 hover:bg-gray-50 text-base px-8 py-3 rounded-lg">
-  //               Raise funds for a listed NGO
-  //             </Button>
-  //           </div>
-  //         </div>
-          
-  //                     <div className='h-full'>
-  //             <img 
-  //               src="/images/header.png" 
-  //               alt="Children fundraising activities" 
-  //               className="w-full h-full object-cover"
-  //             />
-  //         </div>
-  //       </div>
-  //     </div>
-  //   </section>
-  // )
-
-  // Why Brands Sponsor Section
-  const WhySponsorSection = () => (
-    <section className="bg-gradient-to-br from-white via-green-50/30 to-white py-24 relative overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 bg-gradient-to-r from-green-100/5 to-emerald-100/5"></div>
-      <div className="absolute top-1/2 left-0 w-32 h-32 bg-green-200/20 rounded-full -translate-x-16 -translate-y-16"></div>
-      <div className="absolute bottom-0 right-1/4 w-24 h-24 bg-emerald-200/20 rounded-full translate-x-12 translate-y-12"></div>
-      
-      <div className="relative z-10 container mx-auto px-4">
-        <div className="text-center mb-16">
-          {/* <div className="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-2 rounded-full text-sm font-medium mb-6 shadow-lg">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-            Why Choose CauseConnect
-          </div> */}
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-            Why brands choose <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Changebag</span>
-          </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          We help brands launch, manage, and scale real-world visibility campaigns with sustainable reach and measurable results.
-          </p>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {benefits.map((benefit, idx) => (
-            <div
-              key={idx}
-              className="group bg-white/80 backdrop-blur-sm rounded-2xl p-8 flex flex-col items-center text-center shadow-lg border border-green-100/50 hover:shadow-xl hover:-translate-y-2 transition-all duration-300 hover:border-green-200"
-            >
-              <div className="mb-6 flex items-center justify-center rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 w-20 h-20 group-hover:scale-110 transition-transform duration-300">
-                {React.cloneElement(benefit.icon, { className: 'h-12 w-12 text-green-600 group-hover:text-emerald-600 transition-colors duration-300' })}
-              </div>
-              <h3 className="font-bold text-xl mb-4 text-gray-900 group-hover:text-green-700 transition-colors duration-300">{benefit.title}</h3>
-              <p className="text-gray-600 text-base leading-relaxed">{benefit.description}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-
-  // Featured Causes Section
-  const FeaturedCausesSection = () => (
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold mb-4">Causes that need you <span className="text-green-600">right now</span></h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            These high-impact causes are looking for brand partners who are ready to make a meaningful difference in the world.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {featuredLoading ? (
-            [1,2,3].map((i) => (
-              <Card key={i} className="h-96 animate-pulse bg-gray-100"></Card>
-            ))
-          ) : featuredError && featuredCauses.length === 0 ? (
-              <div className="col-span-3 text-center py-12">
-                <h3 className="text-xl font-semibold text-gray-700 mb-2">Error</h3>
-              <p className="text-gray-500 mb-6">{featuredError}</p>
-                <Button onClick={() => window.location.reload()}>Try Again</Button>
-              </div>
-            ) : (
-            featuredCauses.map((cause) => {
-              const isFullyFunded = (cause.currentAmount || 0) >= cause.targetAmount;
-              const hasApprovedSponsorship = cause.sponsorships?.some(s => s.status === 'approved');
-              return (
-                <Card key={cause._id} className="overflow-hidden hover:shadow-lg transition-shadow flex flex-col">
-                  <div 
-                    className="cursor-pointer" 
-                    onClick={() => {
-                      // if (causeIdToMockPage[cause._id]) {
-                      //   navigate(causeIdToMockPage[cause._id]);
-                      // } else {
-                        navigate(`/cause/${cause._id}`);
-                      // }
-                    }}
-                    // onClick={() => navigate(`/cause/${cause._id}`)}
-                    title={`View details for ${cause.title}`}
-                  >
-                    <img 
-                      src={getImageUrl(cause.imageUrl)} 
-                      alt={cause.title} 
-                      className="w-full h-48 object-cover hover:opacity-90 transition-opacity" 
-                      onError={handleImageError}
-                    />
-                  </div>
-                  <CardContent className="p-6 flex flex-col flex-1">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-xl font-semibold">{cause.title}</h3>
-                      </div>
-                      <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                        {cause.category}
-                      </span>
-                    </div>
-                    <p className="text-gray-600 mb-4 flex-1">
-                      {cause.description.length > 120 
-                        ? `${cause.description.substring(0, 120)}...` 
-                        : cause.description}
-                    </p>
-                    {/* <div className="mb-4">
-                      <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div 
-                          className="bg-green-600 h-2.5 rounded-full" 
-                          style={{ width: `${Math.min(((cause.currentAmount || 0) / cause.targetAmount) * 100, 100)}%` }}
-                        ></div>
-                      </div>
-                      <div className="flex justify-between mt-2">
-                        <span className="text-sm text-gray-500">
-                          ₹{(cause.currentAmount || 0).toLocaleString()} raised
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          ₹{cause.targetAmount.toLocaleString()} goal
-                        </span>
-                      </div>
-                    </div> */}
-                    {hasApprovedSponsorship ? (
-                      <Button 
-                        onClick={() => navigate(`/claim/${cause._id}?source=direct&ref=homepage`)} 
-                        className="w-full bg-black text-white mb-2"
-                      >
-                        Claim a Tote
-                      </Button>
-                    ) : null}
-                    {!isFullyFunded && (
-                      <Button 
-                        onClick={() => navigate(`/sponsor/new?causeId=${cause._id}`)} 
-                        className="w-full bg-green-600 hover:bg-green-700 text-white mb-2"
-                      >
-                        Sponsor This Cause
-                      </Button>
-                    )}
-                    {!hasApprovedSponsorship && !isFullyFunded && (
-                      <Button 
-                        variant="outline"
-                        onClick={() => navigate(`/waitlist/${cause._id}`)} 
-                        className="w-full bg-white text-black border border-green-600"
-                      >
-                        Join Waitlist
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })
-            )}
-          </div>
-          <div className="text-center mt-10">
-            <Button 
-              onClick={() => navigate('/causes')} 
-              variant="outline" 
-              size="lg"
-            className="border-green-600 text-green-600 hover:bg-green-50"
-            >
-              View All Causes
-            </Button>
-          </div>
-        </div>
-      </section>
-  );
-
-  const PartnersSection = () => (
-    <section id="partners" className="bg-gradient-to-br from-gray-50 via-white to-green-50/30 py-24 relative overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 bg-gradient-to-r from-green-100/5 to-emerald-100/5"></div>
-      <div className="absolute top-1/2 left-0 w-32 h-32 bg-green-200/20 rounded-full -translate-x-16 -translate-y-16"></div>
-      <div className="absolute bottom-0 right-1/4 w-24 h-24 bg-emerald-200/20 rounded-full translate-x-12 translate-y-12"></div>
-      
-      <div className="relative z-10 container mx-auto px-4">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-            Our <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Corporate Partners</span>
-          </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-            Trusted by the largest brands and corporations, and the most impactful foundations around the world
-          </p>
-        </div>
-        
-        {/* Infinite Carousel */}
-        <div className="relative">
-          {/* First row - moving left */}
-          <div className="flex animate-scroll-left">
-            {[...partners, ...partners].map((partner, index) => (
-              <div 
-                key={`${partner.name}-${index}`}
-                className="group bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 text-center flex items-center justify-center hover:scale-105 flex-shrink-0 mx-4"
-                style={{ minWidth: '200px' }}
-              >
-                <img 
-                  src={partner.logo} 
-                  alt={partner.name} 
-                  className="w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24 object-contain group-hover:scale-110 transition-transform duration-300" 
-                />
+          {/* Results */}
+          <div className={s.calcResults}>
+            {[
+              { id: 'imp', icon: '👁️', val: calc.impressions, label: 'Total impressions', note: 'Based on 200 average uses per bag over 3–5 years', variant: 'primary' },
+              { id: 'plas', icon: '♻️', val: calc.plastic, label: 'Plastic bags replaced', note: '500 single-use plastics eliminated per tote', variant: '' },
+              { id: 'co2', icon: '🌿', val: calc.co2, label: 'CO₂ equivalent saved', note: '27.5 kg CO₂e per bag over full lifecycle', variant: '' },
+              { id: 'don', icon: '🤝', val: calc.donation, label: 'Donated to NGO partner', note: '₹10 per bag, transferred directly to your chosen cause', variant: 'gold' },
+              { id: 'city', icon: '📍', val: calc.cities, label: 'Cities reached', note: 'Hyperlocal distribution to markets, campuses & RWAs', variant: '' },
+              { id: 'cpm', icon: '💰', val: calc.cpm, label: 'Cost per impression', note: 'vs ₹3–8 for OOH. 80% more efficient than billboards', variant: '' },
+            ].map((card) => (
+              <div key={card.id} className={`${s.calcResultCard} ${card.variant === 'primary' ? s.primary : ''} ${card.variant === 'gold' ? s.gold : ''}`}>
+                <span className={s.calcResultIcon}>{card.icon}</span>
+                <div className={s.calcResultNum}>{card.val}</div>
+                <div className={s.calcResultLabel}>{card.label}</div>
+                <div className={s.calcResultNote}>{card.note}</div>
               </div>
             ))}
           </div>
+
+          {/* CTA row */}
+          <div className={s.calcCtaRow}>
+            <div className={s.calcCtaText}>
+              <strong>{calc.bagLabel}</strong> could put your brand in front of{' '}
+              <strong>{calc.impLabel}</strong> while eliminating{' '}
+              <strong>{calc.plasticLabel}</strong>.
+            </div>
+            <button className={s.calcCtaBtn} onClick={onContact}>
+              Start this campaign →
+            </button>
+          </div>
         </div>
       </div>
     </section>
   );
+};
 
-  // Journey/How It Works Section (Enhanced for Mobile)
-  const JourneySection = () => {
-    const [activeStep, setActiveStep] = React.useState(journeySteps[0].id);
-    const currentStep = journeySteps.find(s => s.id === activeStep) || journeySteps[0];
+const ToteShowcase: FC = () => {
+  const [activeKey, setActiveKey] = useState<BagKey>('indigo');
+  const svgHtml = buildToteSVG(activeKey);
 
-    return (
-      <section className="bg-gradient-to-br from-white via-green-50/20 to-white py-12 md:py-24 border-b border-gray-100">
-        <div className="container mx-auto px-4 md:px-6">
-          <div className="text-center mb-12 md:mb-20">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 md:mb-6">
-              From Purpose to Impact: <span className="text-green-600">The ChangeBag Journey</span>
-            </h2>
-            <p className="text-base md:text-lg text-gray-600 max-w-3xl mx-auto px-4">
-              Follow our simple 4-step process to create meaningful impact while building your brand presence
-            </p>
-          </div>
+  const pills: { key: BagKey; dotColor: string; label: string }[] = [
+    { key: 'indigo', dotColor: '#1a3c8f', label: 'Brand A · Clean Water' },
+    { key: 'forest', dotColor: '#0d3d22', label: 'Brand B · Plant Trees' },
+    { key: 'saffron', dotColor: '#c45000', label: 'Brand C · Education' },
+  ];
+  const callouts = [
+    { n: '1', title: 'Brand logo — front & centre', sub: 'Your logo in full colour. Seen every time the bag is used, for 3–5 years.' },
+    { n: '2', title: 'Social cause message', sub: 'A line connecting your brand to the cause — chosen by you, written by us if needed.' },
+    { n: '3', title: 'QR code — live tracking', sub: 'Every scan registers in your real-time dashboard. Links to your campaign page or NGO story.' },
+    { n: '4', title: 'ChangeBag × NGO co-brand', sub: 'Small co-branding at the base adds credibility and cause authenticity.' },
+  ];
 
-          {/* Mobile: Enhanced horizontal stepper */}
-          <div className="block md:hidden">
-            {/* Progress Bar */}
-            
-
-            {/* Current Step Content */}
-            <div className="bg-white rounded-2xl shadow-xl border border-green-100 overflow-hidden mx-4">
-              <div className="relative">
-                <img
-                  src={currentStep.image}
-                  alt={currentStep.imageAlt}
-                  className="w-full h-48 md:h-64 object-contain md:object-cover bg-white"
-                  onError={(e) => {
-                    e.currentTarget.src = "/images/sponsorcause.png";
-                  }}
-                />
-                <div className="absolute top-3 left-3 md:top-4 md:left-4">
-                  {/* <div className="bg-green-600 text-white px-3 py-1 md:px-4 md:py-2 rounded-full font-bold text-xs md:text-sm">
-                    Step {currentStep.step}
-                  </div> */}
-                </div>
-              </div>
-              {/* <div className="p-4 md:p-6">
-                <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-2 md:mb-3">{currentStep.title}</h3>
-                <p className="text-gray-600 text-sm md:text-lg leading-relaxed">{currentStep.description}</p>
-              </div> */}
-            </div>
-
-            {/* Navigation Dots */}
-            <div className="flex justify-center mt-4 md:mt-6 space-x-2 px-4">
-              {journeySteps.map((step) => (
+  return (
+    <section className={`${s.toteSection} ${s.section}`}>
+      <div className={s.container}>
+        <div className={s.toteGrid}>
+          {/* Left */}
+          <div className={s.reveal}>
+            <span className={s.sectionLabel}>What the bag looks like</span>
+            <h2 className={s.toteHeading}>Your brand. Your cause.<br /><em>One powerful bag.</em></h2>
+            <p className={s.toteBody}>Every ChangeBag is a premium 100% cotton canvas tote printed with your brand logo, a cause message, and a QR code — distributed free to citizens and carried to markets, offices, and schools every day.</p>
+            <div className={s.toteSwitcher}>
+              {pills.map((p) => (
                 <button
-                  key={step.id}
-                  onClick={() => setActiveStep(step.id)}
-                  className={`w-2.5 h-2.5 md:w-3 md:h-3 rounded-full transition-all duration-300 ${
-                    activeStep === step.id ? 'bg-green-600 scale-125' : 'bg-gray-300'
-                  }`}
-                />
+                  key={p.key}
+                  className={`${s.totePill} ${activeKey === p.key ? s.active : ''}`}
+                  onClick={() => setActiveKey(p.key)}
+                >
+                  <span className={s.totePillDot} style={{ background: p.dotColor }} />
+                  {p.label}
+                </button>
               ))}
             </div>
-
-            {/* Mobile Step Navigation */}
-            <div className="mt-6 px-4">
-              <div className="flex justify-between items-center">
-                <button
-                  onClick={() => {
-                    const currentIndex = journeySteps.findIndex(s => s.id === activeStep);
-                    if (currentIndex > 0) {
-                      setActiveStep(journeySteps[currentIndex - 1].id);
-                    }
-                  }}
-                  disabled={journeySteps.findIndex(s => s.id === activeStep) === 0}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                    journeySteps.findIndex(s => s.id === activeStep) === 0
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-green-600 text-white hover:bg-green-700'
-                  }`}
-                >
-                  Previous
-                </button>
-                <span className="text-sm text-gray-500">
-                  {journeySteps.findIndex(s => s.id === activeStep) + 1} of {journeySteps.length}
-                </span>
-                <button
-                  onClick={() => {
-                    const currentIndex = journeySteps.findIndex(s => s.id === activeStep);
-                    if (currentIndex < journeySteps.length - 1) {
-                      setActiveStep(journeySteps[currentIndex + 1].id);
-                    }
-                  }}
-                  disabled={journeySteps.findIndex(s => s.id === activeStep) === journeySteps.length - 1}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                    journeySteps.findIndex(s => s.id === activeStep) === journeySteps.length - 1
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-green-600 text-white hover:bg-green-700'
-                  }`}
-                >
-                  Next
-                </button>
-              </div>
+            <div className={s.toteAnatomy}>
+              {callouts.map((c) => (
+                <div key={c.n} className={s.toteCallout}>
+                  <div className={s.toteCalloutNum}>{c.n}</div>
+                  <div>
+                    <div className={s.toteCalloutTitle}>{c.title}</div>
+                    <div className={s.toteCalloutSub}>{c.sub}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
+          {/* Right — SVG bag */}
+          <div className={`${s.toteVisualWrap} ${s.reveal}`} style={{ transitionDelay: '0.15s' }}>
+            <div className={`${s.toteBadge} ${s.b1}`}><span className={s.toteBadgeDot} />100% cotton canvas</div>
+            <div className={`${s.toteBadge} ${s.b2}`}><span className={s.toteBadgeDot} />QR tracked</div>
+            <div className={`${s.toteBadge} ${s.b3}`} style={{ background: 'var(--green-deep)', color: 'var(--white)' }}>
+              <span className={s.toteBadgeDot} style={{ background: 'var(--green-light)' }} />
+              Replaces 500 plastics
+            </div>
+            <div
+              className={s.toteSvgWrap}
+              dangerouslySetInnerHTML={{ __html: svgHtml }}
+            />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
 
-          {/* Desktop: Enhanced vertical layout */}
-          <div className="hidden md:flex flex-row items-stretch gap-8 lg:gap-12">
-            {/* Left: Enhanced Steps */}
-            <div className="w-full md:w-[450px] lg:w-[500px] flex-shrink-0">
-              <div className="bg-white rounded-2xl shadow-xl border border-green-100 p-6 lg:p-8">
-                <div className="space-y-4 lg:space-y-6">
-                  {journeySteps.map((step, index) => (
-                    <div key={step.id} className="relative">
-                      {/* Progress Line */}
-                      {index < journeySteps.length - 1 && (
-                        <div className={`absolute left-6 top-16 w-0.5 h-12 transition-all duration-500 ${
-                          index < journeySteps.findIndex(s => s.id === activeStep) 
-                            ? 'bg-green-500' 
-                            : 'bg-gray-200'
-                        }`}></div>
-                      )}
-                      
-                      <button
-                        onClick={() => setActiveStep(step.id)}
-                        className={`w-full text-left p-4 lg:p-6 rounded-xl transition-all duration-300 group ${
-                          activeStep === step.id 
-                            ? 'bg-green-50 border-2 border-green-200 shadow-lg transform scale-105' 
-                            : 'bg-gray-50 border-2 border-transparent hover:bg-green-50/50 hover:border-green-100'
-                        }`}
-                      >
-                        <div className="flex items-start gap-3 lg:gap-4">
-                          {/* Step Number */}
-                          <div className={`flex-shrink-0 w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center text-sm lg:text-lg font-bold transition-all duration-300 ${
-                            activeStep === step.id 
-                              ? 'bg-green-600 text-white shadow-lg' 
-                              : index < journeySteps.findIndex(s => s.id === activeStep)
-                              ? 'bg-green-500 text-white'
-                              : 'bg-gray-200 text-gray-600 group-hover:bg-green-100'
-                          }`}>
-                            {step.step}
-                          </div>
-                          
-                          {/* Content */}
-                          <div className="flex-1">
-                            <h3 className={`text-lg lg:text-xl font-bold mb-1 lg:mb-2 transition-colors duration-300 ${
-                              activeStep === step.id ? 'text-green-700' : 'text-gray-900'
-                            }`}>
-                              {step.title}
-                            </h3>
-                            <p className="text-gray-600 leading-relaxed text-sm lg:text-base">
-                              {step.description}
-                            </p>
-                          </div>
-                          
-                          {/* Active Indicator */}
-                          {activeStep === step.id && (
-                            <div className="flex-shrink-0">
-                              <div className="w-2.5 h-2.5 lg:w-3 lg:h-3 bg-green-600 rounded-full animate-pulse"></div>
-                            </div>
-                          )}
-                        </div>
-                      </button>
+// Lead capture form (posts to /api/leads)
+const ContactForm: FC = () => {
+  const [lead, setLead] = useState('');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+  const handleSubmit = async () => {
+    if (!lead.trim()) return;
+    setStatus('loading');
+    try {
+      const res = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raw: lead }),
+      });
+      if (!res.ok) throw new Error('Network error');
+      setStatus('success');
+      setLead('');
+    } catch {
+      setStatus('error');
+    }
+  };
+
+  return (
+    <section className={s.finalCta} id="contact">
+      <div className={s.container}>
+        <div className={s.finalCtaInner}>
+          <h2 className={s.finalCtaH2}>Ready to carry<br /><em>change?</em></h2>
+          <p className={s.finalCtaP}>Tell us your brand and we'll send you a personalised campaign proposal within 24 hours.</p>
+          <div className={s.finalForm}>
+            <input
+              type="text"
+              placeholder="Your name, company & phone number"
+              value={lead}
+              onChange={(e) => setLead(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+              disabled={status === 'loading'}
+            />
+            <button className={s.finalFormBtn} onClick={handleSubmit} disabled={status === 'loading'}>
+              {status === 'loading' ? 'Sending…' : status === 'success' ? 'Sent ✓' : 'Get a proposal →'}
+            </button>
+          </div>
+          {status === 'error' && <p style={{ color: '#ff6b6b', fontSize: 13, marginTop: 8 }}>Something went wrong. Please try again.</p>}
+          <p className={s.finalCtaNote}>
+            Or WhatsApp us directly &nbsp;·&nbsp;
+            <a href="#">Book a 15-min call</a> &nbsp;·&nbsp;
+            <a href="#">Download the deck</a>
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// Main Page Component
+// ─────────────────────────────────────────────────────────────────────
+const HomePage: FC = () => {
+  useScrollReveal();
+
+  const navigate = useNavigate();
+  const scrollTo = (id: string) =>
+    document.querySelector(id)?.scrollIntoView({ behavior: 'smooth' });
+
+  return (
+    <>
+      <Navbar />
+
+      {/* ── HERO ── */}
+
+      {/* ── HERO ── */}
+      <section className={s.hero}>
+        <div className={s.heroNoise} />
+        <div className={s.heroGrid} />
+        <div className={s.heroGlow} />
+        <div className={s.heroGlow2} />
+        <div className={`${s.heroInner} ${s.container}`}>
+          <div className={s.heroContent}>
+            <div className={s.heroEyebrow}>
+              <div className={s.heroEyebrowDot} />
+              <span>India's purpose-media platform</span>
+            </div>
+            <h1 className={s.heroH1}>Your brand on<br /><em>a million hands.</em></h1>
+            <span className={s.heroH1Line2}>With a cause.</span>
+            <p className={s.heroSub}>
+              Sponsor branded tote bags distributed <strong>free to citizens</strong> across India.
+              Real impressions. Real communities. An ESG impact report included —
+              at <strong>80% lower cost</strong> than traditional outdoor advertising.
+            </p>
+            <div className={s.heroCtas}>
+              <button className={s.btnHeroPrimary} onClick={() => navigate('/causes')} >
+                Sponsor a campaign
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <button className={s.btnHeroGhost} onClick={() => scrollTo('#how')}>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2" />
+                  <path d="M8 5v4M8 10.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+                See how it works
+              </button>
+            </div>
+            <div className={s.heroStats}>
+              {[
+                { num: '1.2M', accent: '+', label: 'Bags distributed' },
+                { num: '800', accent: '+', label: 'Cities reached' },
+                { num: '₹65M', accent: '+', label: 'Ad value created' },
+                { num: '50K', accent: '+', label: 'Brand ambassadors' },
+              ].map((stat) => (
+                <div key={stat.label} className={s.heroStat}>
+                  <div className={s.heroStatNum}>{stat.num}<span>{stat.accent}</span></div>
+                  <div className={s.heroStatLabel}>{stat.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Ticker />
+      <TrustedBy />
+
+      {/* ── THE PROBLEM ── */}
+      <section className={`${s.intro} ${s.section}`}>
+        <div className={s.container}>
+          <div className={s.introGrid}>
+            <div className={s.reveal}>
+              <span className={s.sectionLabel}>The problem we solve</span>
+              <h2 className={s.introHeading}>India spends ₹1,000+ crores on ads <em>nobody keeps.</em></h2>
+              <p className={s.introBody}>Traditional advertising disappears the moment the campaign ends. Billboards come down. Digital ads scroll past. TV spots are skipped. The spend is gone, and so is the impression.</p>
+              <p className={s.introBody}>Meanwhile, India generates 14 million tons of plastic waste a year — and CSR impact sits invisible in PDF reports nobody reads.</p>
+              <div className={s.introStatsGrid} style={{ marginTop: 32 }}>
+                {[
+                  { big: '14M', label: 'Tons of plastic waste annually' },
+                  { big: '<30%', label: 'Actually gets recycled' },
+                  { big: '₹26K', label: 'Crores mandatory CSR spend (FY24)' },
+                  { big: '0', label: 'Measurable impressions from most CSR' },
+                ].map((st) => (
+                  <div key={st.label} className={s.introStatCard}>
+                    <div className={s.introStatBig}>{st.big}</div>
+                    <div className={s.introStatLabel}>{st.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className={s.reveal} style={{ transitionDelay: '0.15s' }}>
+              <div className={s.problemQuote}>
+                <p className={s.problemQuoteP}>"The world doesn't need more ads — it needs visible impact that people actually carry home."</p>
+                <footer className={s.problemQuoteFooter}>— The ChangeBag principle</footer>
+                <div className={s.problemPillars}>
+                  {[
+                    { icon: '📦', title: 'Free for citizens', sub: 'No purchase required' },
+                    { icon: '📊', title: 'Dashboard tracked', sub: 'Real-time QR data' },
+                    { icon: '🌱', title: 'ESG reportable', sub: 'Impact cert. included' },
+                    { icon: '🤝', title: 'NGO funding', sub: '₹10 donated per bag' },
+                  ].map((p) => (
+                    <div key={p.title} className={s.problemPillar}>
+                      <span className={s.pillarIcon}>{p.icon}</span>
+                      <div className={s.pillarTitle}>{p.title}</div>
+                      <div className={s.pillarSub}>{p.sub}</div>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
 
-            {/* Right: Enhanced Image Display */}
-            <div className="flex-1 flex items-center justify-center">
-              <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent rounded-3xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
-                <div className="relative bg-white rounded-3xl shadow-2xl border border-green-100 overflow-hidden transform group-hover:scale-105 transition-all duration-500">
-                  <div className="relative">
-                    <img
-                      src={currentStep.image}
-                      alt={currentStep.imageAlt}
-                      className="w-full max-w-2xl lg:max-w-4xl h-[400px] lg:h-[600px] object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src = "/images/sponsoracause.png";
-                      }}
-                    />
-                    <div className="absolute bottom-4 right-4 lg:bottom-6 lg:right-6">
-                      <div className="bg-white/90 backdrop-blur-sm text-gray-800 px-3 py-1 lg:px-4 lg:py-2 rounded-full font-medium text-xs lg:text-sm shadow-lg">
-                        {currentStep.title}
-                      </div>
+      {/* ── HOW IT WORKS ── */}
+      <section className={`${s.how} ${s.section}`} id="how">
+        <div className={s.container}>
+          <div className={`${s.howHeader} ${s.reveal}`}>
+            <span className={s.sectionLabel}>The process</span>
+            <h2 className={s.sectionHeading}>Up and running in <em>48 hours.</em></h2>
+            <p className={s.sectionSub}>From brief to bags in the hands of citizens — completely handled by us.</p>
+          </div>
+          <div className={s.stepsGrid}>
+            {STEPS.map((step, i) => (
+              <div key={step.n} className={`${s.step} ${s.reveal}`} style={{ transitionDelay: `${i * 0.1}s` }}>
+                <div className={s.stepNum}>{step.n}</div>
+                <div className={s.stepTitle}>{step.title}</div>
+                <p className={s.stepBody}>{step.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <ToteShowcase />
+
+      {/* ── COMPARE ── */}
+      <section className={`${s.compare} ${s.section}`} id="brands">
+        <div className={s.container}>
+          <div className={s.reveal}>
+            <span className={s.sectionLabel}>The business case</span>
+            <h2 className={s.sectionHeading}>Not just a bag. <em>A better ad buy.</em></h2>
+          </div>
+          <div className={`${s.compareGrid} ${s.reveal}`} style={{ transitionDelay: '0.1s' }}>
+            <div className={`${s.compareCol} ${s.traditional}`}>
+              <div className={s.compareColHeader}>Traditional Advertising</div>
+              <div className={s.compareColBody}>
+                {COMPARE_TRADITIONAL.map((text) => (
+                  <div key={text} className={s.compareRow}>
+                    <span className={`${s.compareIcon} ${s.traditional}`}>✕</span>
+                    <span>{text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className={`${s.compareCol} ${s.changebag}`}>
+              <div className={s.compareColHeader}>ChangeBag Sponsorship</div>
+              <div className={s.compareColBody}>
+                {COMPARE_CHANGEBAG.map((row) => (
+                  <div key={row.text} className={`${s.compareRow} ${row.hl ? s.compareHighlight : ''}`}>
+                    <span className={`${s.compareIcon} ${s.changebag}`}>✓</span>
+                    <span>{row.text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className={`${s.cpmCallout} ${s.reveal}`} style={{ transitionDelay: '0.2s' }}>
+            <div className={s.cpmBig}>80%</div>
+            <div>
+              <div className={s.cpmTextH3}>Lower cost per impression than any other outdoor medium in India.</div>
+              <p className={s.cpmTextP}>At ₹0.04–0.08 per impression vs ₹3–8 for OOH billboards, ChangeBag delivers the same brand visibility as a 500-strong billboard network — with the added benefit of an ESG report your sustainability team can actually use.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FOR BRANDS / DASHBOARD ── */}
+      <section className={`${s.brandsSection} ${s.section}`}>
+        <div className={s.container}>
+          <div className={s.brandsGrid}>
+            <div className={s.reveal}>
+              <span className={s.sectionLabel}>For brand teams</span>
+              <h2 className={s.sectionHeading}>Marketing ROI.<br /><em>CSR proof.</em><br />One campaign.</h2>
+              <div className={s.brandsFeatures}>
+                {FEATURES.map((f) => (
+                  <div key={f.title} className={s.featureItem}>
+                    <div className={s.featureIcon}>{f.icon}</div>
+                    <div>
+                      <h4>{f.title}</h4>
+                      <p>{f.body}</p>
                     </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className={s.reveal} style={{ transitionDelay: '0.15s' }}>
+              <div className={s.dashboardCard}>
+                <div className={s.dashboardTopbar}>
+                  <div className={s.dbDot} style={{ background: '#ff5f57' }} />
+                  <div className={s.dbDot} style={{ background: '#febc2e' }} />
+                  <div className={s.dbDot} style={{ background: '#28c840' }} />
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginLeft: 'auto' }}>ChangeBag Impact Dashboard</span>
+                </div>
+                <div className={s.dashboardBody}>
+                  <div className={s.dbBrandRow}>
+                    <div className={s.dbBrandLogo}>CB</div>
+                    <div>
+                      <div className={s.dbBrandName}>Your Brand · Q1 Campaign</div>
+                      <div className={s.dbBrandSub}>Active · Jan 15 – Mar 15, 2025</div>
+                    </div>
+                  </div>
+                  <div className={s.dbMetrics}>
+                    {[['48.2K', 'Impressions'], ['2,400', 'Bags out'], ['66 KG', 'CO₂ saved']].map(([n, l]) => (
+                      <div key={l} className={s.dbMetric}>
+                        <div className={s.dbMetricNum}>{n}</div>
+                        <div className={s.dbMetricLbl}>{l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className={s.dbBarLabel}>Top cities</div>
+                  {[['Hyderabad', '85%', '1,020'], ['Bengaluru', '62%', '744'], ['Mumbai', '45%', '540'], ['Delhi', '25%', '300']].map(([city, w, val]) => (
+                    <div key={city} className={s.dbBarRow}>
+                      <span className={s.dbBarCity}>{city}</span>
+                      <div className={s.dbBarTrack}><div className={s.dbBarFill} style={{ width: w }} /></div>
+                      <span className={s.dbBarVal}>{val}</span>
+                    </div>
+                  ))}
+                  <div className={s.dbExportRow}>
+                    <span>📄</span>
+                    <span className={s.dbExportTxt}>ESG Impact Report ready to export</span>
+                    <span className={s.dbExportDl}>Download →</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-
-          {/* Bottom CTA */}
-          {/* <div className="text-center mt-12 md:mt-16">
-            <Button 
-              onClick={() => navigate('/causes')}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 md:px-8 md:py-4 text-base md:text-lg rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
-            >
-              Start Your Journey
-            </Button>
-          </div> */}
         </div>
       </section>
-    );
-  };
-  
-  // How Change Spreads Section (Enhanced for Mobile)
-  const SpreadSection = () => (
-    <section className="bg-white py-20 border-b border-gray-100">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">
-            How Change <span className="text-green-600">Spreads</span>
-          </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Our multi-channel approach ensures your message reaches the right audience through various touchpoints
-          </p>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Website & Social Media */}
-          <div className="bg-white rounded-2xl p-8 flex flex-col items-center shadow-md transition-all duration-200 hover:shadow-xl hover:-translate-y-2">
-            <div className="mb-4 flex items-center justify-center rounded-full bg-green-50 w-16 h-16">
-              {/* Globe/Share Icon */}
-              <svg width="40" height="40" fill="none" viewBox="0 0 24 24" className="text-green-600">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
-                <path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-            </div>
-            <h3 className="font-bold text-xl mb-2 text-center text-gray-900">Website & Social Media</h3>
-            <p className="text-gray-600 text-base text-center">Engaging campaigns that go viral through strategic social media presence and compelling web content.</p>
-          </div>
 
-          {/* YouTuber Network */}
-          <div className="bg-white rounded-2xl p-8 flex flex-col items-center shadow-md transition-all duration-200 hover:shadow-xl hover:-translate-y-2">
-            <div className="mb-4 flex items-center justify-center rounded-full bg-green-50 w-16 h-16">
-              {/* YouTube Play Icon */}
-              <svg width="40" height="40" fill="none" viewBox="0 0 24 24" className="text-green-600">
-                <rect x="3" y="6" width="18" height="12" rx="3" stroke="currentColor" strokeWidth="2"/>
-                <polygon points="10,9 16,12 10,15" fill="currentColor"/>
-              </svg>
-            </div>
-            <h3 className="font-bold text-xl mb-2 text-center text-gray-900">YouTuber Network</h3>
-            <p className="text-gray-600 text-base text-center">100M+ subscribers, 50M+ views for massive reach through trusted influencer partnerships.</p>
-          </div>
+      <ImpactCalculator onContact={() => navigate('/causes')} />
 
-          {/* Change Pickup Points */}
-          <div className="bg-white rounded-2xl p-8 flex flex-col items-center shadow-md transition-all duration-200 hover:shadow-xl hover:-translate-y-2">
-            <div className="mb-4 flex items-center justify-center rounded-full bg-green-50 w-16 h-16">
-              {/* Map Pin Icon */}
-              <svg width="40" height="40" fill="none" viewBox="0 0 24 24" className="text-green-600">
-                <path d="M12 21s6-5.686 6-10A6 6 0 0 0 6 11c0 4.314 6 10 6 10z" stroke="currentColor" strokeWidth="2"/>
-                <circle cx="12" cy="11" r="2" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-            </div>
-            <h3 className="font-bold text-xl mb-2 text-center text-gray-900">Change Pickup Points</h3>
-            <p className="text-gray-600 text-base text-center">Malls, cafes, key city junctions - strategically placed pickup points for maximum visibility.</p>
+      {/* ── CAUSES ── */}
+      <section className={`${s.causes} ${s.section}`}>
+        <div className={s.container}>
+          <div className={`${s.causesHeader} ${s.reveal}`}>
+            <h2 className={s.causesHeading}>Causes that need you <em>right now</em></h2>
+            <p className={s.causesSub}>These high-impact causes are looking for brand partners who are ready to make a meaningful difference in the world.</p>
           </div>
-
-          {/* E-commerce Tie-ups */}
-          <div className="bg-white rounded-2xl p-8 flex flex-col items-center shadow-md transition-all duration-200 hover:shadow-xl hover:-translate-y-2">
-            <div className="mb-4 flex items-center justify-center rounded-full bg-green-50 w-16 h-16">
-              {/* Shopping Bag Icon */}
-              <svg width="40" height="40" fill="none" viewBox="0 0 24 24" className="text-green-600">
-                <path d="M6 7V6a6 6 0 0 1 12 0v1" stroke="currentColor" strokeWidth="2"/>
-                <rect x="4" y="7" width="16" height="13" rx="2" stroke="currentColor" strokeWidth="2"/>
-                <path d="M9 11v2m6-2v2" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-            </div>
-            <h3 className="font-bold text-xl mb-2 text-center text-gray-900">E-commerce Tie-ups</h3>
-            <p className="text-gray-600 text-base text-center">Available on BookMyShow, MakeMyTrip, and more - integrated into popular e-commerce platforms.</p>
-          </div>
-        </div>
-
-        {/* Stats Section */}
-        <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8">
-          <div className="text-center">
-            <div className="text-3xl md:text-4xl font-bold text-green-600 mb-2">100M+</div>
-            <div className="text-gray-600 font-medium">Subscribers</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl md:text-4xl font-bold text-green-600 mb-2">50M+</div>
-            <div className="text-gray-600 font-medium">Views</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl md:text-4xl font-bold text-green-600 mb-2">500+</div>
-            <div className="text-gray-600 font-medium">Pickup Points</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl md:text-4xl font-bold text-green-600 mb-2">10+</div>
-            <div className="text-gray-600 font-medium">Platforms</div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-
-  const Testimonials = () => (
-    <section className="py-20 bg-white">
-      <div className="container mx-auto px-6">
-        <div className="text-center mb-16">
-          <h2 className="text-5xl font-bold mb-6 text-gray-900">What People Are Saying</h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Real stories from our community about the impact of this initiative
-          </p>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {testimonials.map((testimonial) => (
-            <Card key={testimonial.id} className="hover:shadow-lg transition-all duration-300">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <img 
-                    src={testimonial.avatar} 
-                    alt={testimonial.name}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">{testimonial.name}</h3>
-                    <p className="text-sm text-gray-600">{testimonial.role}</p>
-                    {/* <p className="text-xs text-gray-500">{testimonial.company}</p> */}
+          <div className={s.causesGrid}>
+            {CAUSES.map((cause, i) => (
+              <div key={cause.title} className={`${s.causeCard} ${s.reveal}`} style={{ transitionDelay: `${i * 0.1}s` }}>
+                <div className={s.causeImgWrap}>
+                  <img src={cause.img} alt={cause.alt} loading="lazy" />
+                </div>
+                <div className={s.causeBody}>
+                  <div className={s.causeTopRow}>
+                    <div className={s.causeTitle}>{cause.title}</div>
+                    <span className={`${s.causeCat} ${s[cause.catClass]}`}>{cause.cat}</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                  <p className={s.causeDesc}>{cause.desc}</p>
+                  <div className={s.causeActions}>
+                    {cause.buttons.map((btn) => (
+                      <button
+                        key={btn.label}
+                        onClick={() => {
+                          if (btn.label === 'Claim a Tote') {
+                            navigate(`/claim/${cause._id}`);
+                          } else if (btn.label === 'Sponsor This Cause') {
+                            navigate(`/sponsor/new?causeId=${cause._id}`);
+                          } else if (btn.label === 'Join Waitlist') {
+                            navigate(`/waitlist/${cause._id}`);
+                          } else {
+                            navigate('/causes');
+                          }
+                        }}
+                        className={`${s.causeBtn} ${btn.variant === 'black' ? s.causeBtnBlack :
+                          btn.variant === 'green' ? s.causeBtnGreen :
+                            s.causeBtnOutline
+                          }`}
+                      >
+                        {btn.label}
+                      </button>
                     ))}
                   </div>
                 </div>
-                <blockquote className="text-gray-700 italic">
-                  "{testimonial.content}"
-                </blockquote>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        
-        {/* <div className="text-center mt-12">
-          <div className="inline-flex items-center gap-4 bg-gray-50 px-8 py-4 rounded-full">
-            <div className="flex items-center gap-1">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-              ))}
-            </div>
-            <span className="text-gray-700 font-medium">4.9/5 Average Rating</span>
-            <span className="text-gray-500">•</span>
-            <span className="text-gray-600">{testimonials.length} Verified Reviews</span>
-          </div>
-        </div> */}
-      </div>
-    </section>
-  );
-
-  // Join the Movement CTA
-  const JoinCTASection = () => (
-    <section className="relative overflow-hidden bg-gradient-to-br from-green-600 via-emerald-600 to-green-800 py-8 lg:py-12">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-500/20"></div>
-      <div className="absolute top-0 left-0 w-64 h-64 bg-white/10 rounded-full -translate-x-32 -translate-y-32 animate-pulse"></div>
-      <div className="absolute bottom-0 right-0 w-80 h-80 bg-white/10 rounded-full translate-x-40 translate-y-40 animate-pulse" style={{animationDelay: '1s'}}></div>
-      <div className="absolute top-1/2 left-1/4 w-32 h-32 bg-white/5 rounded-full animate-bounce" style={{animationDelay: '0.5s'}}></div>
-      
-      {/* Floating particles */}
-      <div className="absolute top-20 left-20 w-2 h-2 bg-white/30 rounded-full animate-ping"></div>
-      <div className="absolute top-40 right-32 w-1 h-1 bg-white/40 rounded-full animate-ping" style={{animationDelay: '0.5s'}}></div>
-      <div className="absolute bottom-32 left-1/3 w-1.5 h-1.5 bg-white/25 rounded-full animate-ping" style={{animationDelay: '1s'}}></div>
-      
-      <div className="relative z-10 container mx-auto px-4 text-center">
-        <div className="max-w-4xl mx-auto">
-          {/* <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white px-6 py-2 rounded-full text-sm font-medium mb-8 shadow-lg">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-            Join the Movement
-          </div> */}
-          
-          <h2 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
-            Ready to join the <span className="bg-gradient-to-r from-yellow-300 to-yellow-100 bg-clip-text text-transparent">movement?</span>
-          </h2>
-          
-          <p className="text-xl lg:text-2xl text-green-100 mb-10 max-w-3xl mx-auto leading-relaxed">
-            Whether you're a brand looking for authentic reach or someone who loves free, useful things that matter – Changebag is for you.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <Button 
-              className="bg-white text-green-600 hover:bg-green-50 text-lg px-8 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
-              onClick={() => navigate('/causes')}
-              aria-label="Join Now"
-            >
-              Sponsor Now
-            </Button>
-            <Button 
-              variant="outline"
-              className="bg-white text-green-600 hover:bg-green-50 text-lg px-8 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
-              
-              onClick={() => navigate('/why-sponsor')}
-            >
-              Learn More
-            </Button>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-
-  const StoriesSection = () => (
-    <section className="py-20 bg-background">
-    <div className="container mx-auto px-4">
-      <div className="text-center mb-16 animate-fade-in">
-        <h2 className="text-4xl font-bold text-green-600 mb-4">
-          The Most Budget-Friendly CSR & Brand Awareness Strategy
-        </h2>
-        <p className="text-lg text-muted-foreground max-w-4xl mx-auto">
-          With ChangeBag.org's tote sponsorship, brands achieve enduring visibility, enhanced consumer 
-          engagement, and cost-effective marketing while promoting sustainability. Unlike temporary ads, 
-          tote bags serve as daily-use items, providing years of continuous brand promotion and generating 
-          millions of impressions from a single investment.
-        </p>
-      </div>
-
-      <div className="overflow-x-auto mb-12">
-        <div className="border-2 border-black-200 rounded-2xl shadow-xl overflow-hidden">
-          <table className="w-full bg-white">
-            <thead>
-              <tr className="bg-gradient-to-r from-green-600 to-emerald-600 text-white">
-                <th className="px-6 py-4 text-left font-semibold border-r border-green-500">Marketing Method</th>
-                <th className="px-6 py-4 text-left font-semibold border-r border-green-500">Impressions</th>
-                <th className="px-6 py-4 text-left font-semibold border-r border-green-500">Duration</th>
-                <th className="px-6 py-4 text-left font-semibold border-r border-green-500">CPM</th>
-                <th className="px-6 py-4 text-left font-semibold border-r border-green-500">Engagement</th>
-                <th className="px-6 py-4 text-left font-semibold">Sustainability Impact</th>
-              </tr>
-            </thead>
-            <tbody>
-              {marketingMethods.map((method, index) => (
-                <tr 
-                  key={index}
-                  className={`border-b border-black-200 ${
-                    method.highlighted 
-                      ? 'bg-black-50/80 border-black-200' 
-                      : 'bg-white hover:bg-black-50/30'
-                  } transition-all duration-300`}
-                >
-                  <td className="px-6 py-4 border-r border-black-200">
-                    <div className="flex items-center space-x-3">
-                      <span className="text-2xl">{method.icon}</span>
-                      <span className='font-medium text-gray-900'>
-                        {method.method}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-gray-600 border-r border-black-100">{method.impressions}</td>
-                  <td className="px-6 py-4 text-gray-600 border-r border-black-100">{method.duration}</td>
-                  <td className="px-6 py-4 text-gray-600 border-r border-black-100">{method.cpm}</td>
-                  <td className="px-6 py-4 text-gray-600 border-r border-black-100">{method.engagement}</td>
-                  <td className="px-6 py-4 text-gray-600">{method.sustainability}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* <div className="text-center">
-        <Button size="lg" className="bg-primary hover:bg-accent text-lg px-8 py-3">
-          Partner with Us for Sustainable Impact
-        </Button>
-      </div> */}
-    </div>
-  </section>
-);
-
-  const FaqSection = () => (
-    <section id="faq" className="bg-gradient-to-br from-white via-green-50/20 to-white py-24 relative overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 bg-gradient-to-r from-green-100/5 to-emerald-100/5"></div>
-      <div className="absolute top-0 right-0 w-40 h-40 bg-green-200/20 rounded-full translate-x-20 -translate-y-20"></div>
-      <div className="absolute bottom-0 left-1/4 w-32 h-32 bg-emerald-200/20 rounded-full -translate-x-16 translate-y-16"></div>
-      
-      <div className="relative z-10 container mx-auto px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-16">
-            {/* <div className="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-6 py-2 rounded-full text-sm font-medium mb-6 shadow-lg">
-              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-              Frequently Asked Questions
-            </div> */}
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-              Got <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">Questions?</span>
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              Everything you need to know about our initiatives. If you have any other questions please reach out to us at:{" "}
-              {/* <a href="mailto:support@changebag.org" className="text-green-600 hover:text-green-800 font-medium transition-colors duration-300">
-                support@changebag.org
-              </a> */}
-               <a
-    href="https://mail.google.com/mail/?view=cm&fs=1&to=support%40changebag.org&su=support%20request&body=Hi%20team%2C%0A"
-    target="_blank"
-    rel="noopener noreferrer"
-    className="text-green-400 font-medium"
-  >
-    support@changebag.org
-  </a>
-            </p>
-          </div>
-
-          <Accordion type="single" collapsible className="space-y-4">
-            {faqs.map((faq, index) => (
-              <AccordionItem 
-                key={index} 
-                value={`item-${index}`}
-                className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-green-100/50 animate-fade-in hover:shadow-xl transition-all duration-300"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <AccordionTrigger className="px-6 py-4 text-left hover:no-underline hover:bg-green-50/50 rounded-xl transition-all duration-300">
-                  <span className="text-lg font-medium text-gray-900 pr-4 group-hover:text-green-700 transition-colors duration-300">
-                    {faq.question}
-                  </span>
-                </AccordionTrigger>
-                <AccordionContent className="px-6 pb-4 text-gray-600 leading-relaxed">
-                  {faq.answer}
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </div>
-      </div>
-    </section>
-  );
-
-  const StatsSection=()=>(
-    <section className="bg-gradient-to-br from-green-50 via-white to-emerald-50 py-20 px-8 relative overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 bg-gradient-to-r from-green-100/20 to-emerald-100/20"></div>
-      <div className="absolute top-0 left-0 w-32 h-32 bg-green-200/30 rounded-full -translate-x-16 -translate-y-16"></div>
-      <div className="absolute bottom-0 right-0 w-40 h-40 bg-emerald-200/30 rounded-full translate-x-20 translate-y-20"></div>
-      
-      <div className="max-w-6xl mx-auto text-center relative z-10">
-        <div className="mb-12">
-          {/* <div className="inline-flex items-center gap-2 bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-2 rounded-full text-lg font-bold mb-8 shadow-lg">
-            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-            give.do
-          </div> */}
-          <h2 className="text-4xl md:text-6xl font-bold text-gray-900 leading-tight mb-6">
-            India's most trusted on-ground<br />
-            <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-              brand activation platform
-            </span>
-          </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-          Empowering brands to make real-world impact through sustainable, visible, and community-driven campaigns.
-          </p>
-        </div>
-        
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-16">
-          {stats.map((stat, index) => (
-            <div key={index} className="text-center group">
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-green-100/50 hover:shadow-xl transition-all duration-300 group-hover:scale-105">
-                <div className="text-4xl md:text-5xl font-bold text-gray-900 mb-3 group-hover:text-green-600 transition-colors">
-                  {stat.number}
-                </div>
-                <div className="text-gray-600 text-sm md:text-base font-medium">
-                  {stat.label}
-                </div>
               </div>
-            </div>
-          ))}
-        </div>
-        
-        {/* Trust indicators */}
-        {/* <div className="mt-16 pt-8 border-t border-green-200/50">
-          <p className="text-sm text-gray-500 mb-4">Trusted by millions across India</p>
-          <div className="flex items-center justify-center gap-8 opacity-60">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-              <span className="text-sm font-medium">SSL Secured</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-              <span className="text-sm font-medium">PCI Compliant</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-              <span className="text-sm font-medium">24/7 Support</span>
-            </div>
+            ))}
           </div>
-        </div> */}
-      </div>
-    </section>
-  );
-
-  const HowItWorksSection = () => (
-    <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-            Carry the <span className="text-[#008037]">Change</span>
-          </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-          Join the movement. Get a free tote, support a cause, and go greener.
-          </p>
+          <div className={`${s.causesViewAllWrap} ${s.reveal}`} style={{ transitionDelay: '0.15s' }}>
+            <Link to="/causes" className={s.causesViewAll}>
+              View All Causes
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Link>
+          </div>
         </div>
-        
-        <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {steps.map((step, index) => (
-              <div key={index} className="relative">
-                <div className="bg-white rounded-3xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-2 text-center">
-                  <div className="text-[#008037] text-6xl font-bold mb-4 opacity-20">
-                    {step.number}
+      </section>
+
+      {/* ── TESTIMONIALS ── */}
+      <section className={`${s.testimonials} ${s.section}`}>
+        <div className={s.container}>
+          <div className={`${s.testimonialsHeader} ${s.reveal}`}>
+            <span className={s.sectionLabel}>What our partners say</span>
+            <h2 className={s.sectionHeading}>Early campaigns. <em>Real results.</em></h2>
+            <p className={s.sectionSub} style={{ margin: '0 auto' }}>We have distributed 5 lakh bags across 2 cities so far. Here is what the brands experienced.</p>
+          </div>
+          <div className={s.testiGrid}>
+            {TESTIMONIALS.map((t) => (
+              <div key={t.name} className={`${s.testiCard} ${s.reveal}`} style={{ transitionDelay: t.delay }}>
+                <div className={s.testiStars}>{Array(5).fill(null).map((_, i) => <span key={i} className={s.testiStar}>★</span>)}</div>
+                <p className={s.testiQuote}>{t.quote}</p>
+                <div className={s.testiAuthor}>
+                  <div className={s.testiAvatar} style={{ background: t.bg }}>{t.initials}</div>
+                  <div>
+                    <div className={s.testiName}>{t.name}</div>
+                    <div className={s.testiRole}>{t.role}</div>
+                    <span className={s.testiBrandTag}>{t.tag}</span>
                   </div>
-                  <div className="text-[#008037] mb-6 flex justify-center">
-                    {step.icon}
-                  </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">
-                    {step.title}
-                  </h3>
-                  <p className="text-gray-600 leading-relaxed">
-                    {step.description}
-                  </p>
                 </div>
-                {index < steps.length - 1 && (
-                  <div className="hidden lg:block absolute top-1/2 -right-4 w-8 h-0.5 bg-green-300 transform -translate-y-1/2"></div>
-                )}
               </div>
             ))}
           </div>
         </div>
-      </div>
-    </section>
-  );
+      </section>
 
-  // --- Render ---
-  return (
-    <Layout>
-      <HeroSection />
-      <StatsSection />
-      <FeaturedCausesSection />
-      <WhySponsorSection />
-      <JourneySection />
-      {/* <RaiseFundsSection /> */}
-      <HowItWorksSection />
-      {/* <StoriesSection /> */}
-      <JoinCTASection />
-      <Testimonials />
-      <PartnersSection />
-      <hr />
-      <FaqSection />
-      
-    </Layout>
+      {/* ── NGOs ── */}
+      <section className={`${s.ngos} ${s.section}`} id="ngos">
+        <div className={s.container}>
+          <div className={s.ngosGrid}>
+            <div className={s.reveal}>
+              <span className={s.sectionLabel}>For NGOs &amp; causes</span>
+              <h2 className={s.sectionHeading}>Your mission,<br />in a <em>million hands.</em></h2>
+              <p className={s.introBody} style={{ marginTop: 16 }}>
+                Partner with ChangeBag at zero cost. Your cause gets carried into homes, markets, and public spaces across India — by citizens who believe in it.
+              </p>
+            </div>
+            <div className={`${s.ngoCards} ${s.reveal}`} style={{ transitionDelay: '0.1s' }}>
+              {NGO_CARDS.map((card) => (
+                <div key={card.title} className={s.ngoCard}>
+                  <div className={s.ngoIcon} style={{ background: card.bg }}>{card.icon}</div>
+                  <div>
+                    <h4>{card.title}</h4>
+                    <p>{card.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── MEDIA ── */}
+      <section className={s.media}>
+        <div className={s.container}>
+          <p className={s.mediaLabel}>Featured in</p>
+          <div className={s.mediaLogos}>
+            {['NDTV', 'Times of India', 'Hindustan Times', 'Outlook', 'Economic Times', 'India Today', 'Business Standard', 'YourStory'].map((m) => (
+              <div key={m} className={s.mediaLogo}>{m}</div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <ContactForm />
+
+      {/* ── FOOTER ── */}
+      <footer className={s.footer}>
+        <div className={s.container}>
+          <div className={s.footerGrid}>
+            <div>
+              <span className={s.footerLogo}>ChangeBag</span>
+              <p className={s.footerBrandP}>India's purpose-media platform. Sponsor branded tote bags. Drive real impressions. Create measurable ESG impact.</p>
+            </div>
+            <div className={s.footerCol}>
+              <h5>Platform</h5>
+              <ul>
+                {['For Brands', 'For NGOs', 'For Government', 'Case Studies'].map((l) => <li key={l}><a href="#">{l}</a></li>)}
+              </ul>
+            </div>
+            <div className={s.footerCol}>
+              <h5>Company</h5>
+              <ul>
+                {['About us', 'Impact report', 'NGO partners', 'Media kit', 'Careers'].map((l) => <li key={l}><a href="#">{l}</a></li>)}
+              </ul>
+            </div>
+            <div className={s.footerCol}>
+              <h5>Contact</h5>
+              <ul>
+                {['hello@changebag.org', 'WhatsApp', 'LinkedIn', 'Instagram', 'Privacy Policy'].map((l) => <li key={l}><a href="#">{l}</a></li>)}
+              </ul>
+            </div>
+          </div>
+          <div className={s.footerBottom}>
+            <p>© 2025 ChangeBag. All rights reserved.</p>
+            <p>Made with purpose in India 🇮🇳</p>
+          </div>
+        </div>
+      </footer>
+    </>
   );
 };
 
-export default Index;
+export default HomePage;

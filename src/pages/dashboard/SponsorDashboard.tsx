@@ -280,78 +280,87 @@ interface Sponsorship {
   return (
     <DashboardLayout 
       title="Sponsor Dashboard" 
-      subtitle={`Welcome back, ${user?.name}`}
+      subtitle={`Welcome back, ${user?.name}. Here's the impact you're creating today.`}
     >
       {/* Enhanced Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card className="relative overflow-hidden border-0 shadow-lg bg-white hover:shadow-xl transition-all duration-300">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-200 to-transparent rounded-full -translate-y-16 translate-x-16 opacity-20"></div>
+        <Card className="relative overflow-hidden border border-gray-100 shadow-sm bg-white hover:shadow-md transition-all duration-300">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-100 to-transparent rounded-full -translate-y-16 translate-x-16 opacity-30"></div>
           <CardHeader className="pb-2 relative">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-gray-600">
-              Total Contributed
-            </CardTitle>
-              <DollarSign className="h-5 w-5 text-green-600" />
+              <CardTitle className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                Total Contributed
+              </CardTitle>
+              <div className="p-2 bg-green-50 rounded-lg">
+                <DollarSign className="h-5 w-5 text-green-600" />
+              </div>
             </div>
           </CardHeader>
           <CardContent className="relative">
-            <div className="text-3xl font-bold text-green-700">${totalContributed.toLocaleString()}</div>
-            <p className="text-sm text-gray-500 mt-1">Across all sponsorships</p>
+            <div className="text-4xl font-bold font-serif text-gray-900 leading-none">₹{totalContributed.toLocaleString()}</div>
+            <p className="text-sm text-gray-500 mt-2 flex items-center gap-1.5 font-medium">
+              <TrendingUp className="h-4 w-4 text-green-500" />
+              <span>Across all causes</span>
+            </p>
           </CardContent>
         </Card>
         
-        <Card className="relative overflow-hidden border-0 shadow-lg bg-white hover:shadow-xl transition-all duration-300">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-200 to-transparent rounded-full -translate-y-16 translate-x-16 opacity-20"></div>
+        <Card className="relative overflow-hidden border border-gray-100 shadow-sm bg-white hover:shadow-md transition-all duration-300">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-100 to-transparent rounded-full -translate-y-16 translate-x-16 opacity-30"></div>
           <CardHeader className="pb-2 relative">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-gray-600">
-              Approved Sponsorships
-            </CardTitle>
-              <CheckCircle className="h-5 w-5 text-blue-600" />
+              <CardTitle className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                Approved Sponsorships
+              </CardTitle>
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-blue-600" />
+              </div>
             </div>
           </CardHeader>
           <CardContent className="relative">
-            <div className="text-3xl font-bold text-green-700">{approvedSponsorships}</div>
-            <p className="text-sm text-gray-500 mt-1">Successfully approved</p>
+            <div className="text-4xl font-bold font-serif text-gray-900 leading-none">{approvedSponsorships}</div>
+            <p className="text-sm text-gray-500 mt-2 font-medium">Successfully active</p>
           </CardContent>
         </Card>
         
-        <Card className="relative overflow-hidden border-0 shadow-lg bg-white hover:shadow-xl transition-all duration-300">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-purple-200 to-transparent rounded-full -translate-y-16 translate-x-16 opacity-20"></div>
+        <Card className="relative overflow-hidden border border-gray-100 shadow-sm bg-white hover:shadow-md transition-all duration-300">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-100 to-transparent rounded-full -translate-y-16 translate-x-16 opacity-30"></div>
           <CardHeader className="pb-2 relative">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-medium text-gray-600">
-              Total Totes
-            </CardTitle>
-              <Package className="h-5 w-5 text-purple-600" />
+              <CardTitle className="text-sm font-bold text-gray-500 uppercase tracking-wider">
+                Total Totes
+              </CardTitle>
+              <div className="p-2 bg-indigo-50 rounded-lg">
+                <Package className="h-5 w-5 text-indigo-600" />
+              </div>
             </div>
           </CardHeader>
           <CardContent className="relative">
-            <div className="text-3xl font-bold text-green-700">{totalTotes}</div>
-            <p className="text-sm text-gray-500 mt-1">Distributed to causes</p>
+            <div className="text-4xl font-bold font-serif text-gray-900 leading-none">{totalTotes}</div>
+            <p className="text-sm text-gray-500 mt-2 font-medium">Distributed to communities</p>
           </CardContent>
         </Card>
       </div>
       
       {/* Enhanced Tabs */}
       <Tabs defaultValue="sponsorships" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-white border border-gray-200 rounded-xl mb-8">
-          <TabsTrigger value="sponsorships" className="data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-green-700 rounded-lg transition-all duration-200">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              My Sponsorships
+        <TabsList className="flex w-full overflow-x-auto h-auto bg-transparent border-b border-gray-200 rounded-none mb-10 p-0 gap-8">
+          <TabsTrigger value="sponsorships" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-green-700 data-[state=active]:border-b-2 data-[state=active]:border-green-600 rounded-none transition-all duration-200 px-1 py-4">
+            <div className="flex items-center gap-2.5 font-bold text-sm">
+              <Building2 className="h-4.5 w-4.5" />
+              Sponsorships
             </div>
           </TabsTrigger>
-          <TabsTrigger value="my-causes" className="data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-green-700 rounded-lg transition-all duration-200">
-            <div className="flex items-center gap-2">
-              <Award className="h-4 w-4" />
-              My Causes
+          <TabsTrigger value="my-causes" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-green-700 data-[state=active]:border-b-2 data-[state=active]:border-green-600 rounded-none transition-all duration-200 px-1 py-4">
+            <div className="flex items-center gap-2.5 font-bold text-sm">
+              <Award className="h-4.5 w-4.5" />
+              Active Causes
             </div>
           </TabsTrigger>
-          <TabsTrigger value="totes-claimed" className="data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-green-700 rounded-lg transition-all duration-200">
-            <div className="flex items-center gap-2">
-              <Package className="h-4 w-4" />
-              Totes Claimed
+          <TabsTrigger value="totes-claimed" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-green-700 data-[state=active]:border-b-2 data-[state=active]:border-green-600 rounded-none transition-all duration-200 px-1 py-4">
+            <div className="flex items-center gap-2.5 font-bold text-sm">
+              <Package className="h-4.5 w-4.5" />
+              Community Impact
             </div>
           </TabsTrigger>
         </TabsList>
@@ -397,7 +406,7 @@ interface Sponsorship {
                             <DollarSign className="h-4 w-4 text-gray-500" />
                           <div>
                               <p className="text-xs text-gray-500">Contribution</p>
-                              <p className="font-semibold text-gray-800">${sponsorship.totalAmount?.toLocaleString()}</p>
+                              <p className="font-semibold text-gray-800">₹{sponsorship.totalAmount?.toLocaleString()}</p>
                             </div>
 
                           </div>
@@ -511,6 +520,25 @@ interface Sponsorship {
         </TabsContent>
         
         <TabsContent value="my-causes">
+          <div className="text-center py-24 bg-white rounded-2xl border border-dashed border-gray-200 shadow-sm">
+            <div className="mx-auto w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mb-6">
+              <span className="text-4xl">✨</span>
+            </div>
+            <h3 className="text-3xl font-bold font-serif text-gray-900 mb-4">Create Your Own Cause</h3>
+            <p className="text-gray-500 max-w-lg mx-auto mb-10 text-lg leading-relaxed">
+              Coming soon! You'll soon have the power to create your own meaningful causes, set impact targets, 
+              and connect with verified sponsors to bring your vision of change to life across India.
+            </p>
+            <div className="inline-flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-full font-bold text-sm tracking-wide uppercase">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+              </span>
+              Under Development
+            </div>
+          </div>
+
+          {/* Existing logic commented out for future use
           <div className="space-y-6">
             {sponsorCauses.length > 0 ? (
               sponsorCauses.map((cause) => (
@@ -548,7 +576,6 @@ interface Sponsorship {
                         </div>
                         <p className="text-gray-600 mb-6 line-clamp-2">{cause.description}</p>
                         
-                        {/* Enhanced Progress Bar */}
                         <div className="mb-6">
                           <div className="flex justify-between items-center mb-2">
                             <span className="text-sm font-medium text-gray-700">Progress</span>
@@ -564,15 +591,14 @@ interface Sponsorship {
                           </div>
                           <div className="flex justify-between mt-2">
                             <span className="text-sm text-gray-500">
-                              ${(cause.currentAmount || 0).toLocaleString()} raised
+                              ₹{(cause.currentAmount || 0).toLocaleString()} raised
                             </span>
                             <span className="text-sm text-gray-500">
-                              ${cause.targetAmount.toLocaleString()} goal
+                              ₹{cause.targetAmount.toLocaleString()} goal
                             </span>
                           </div>
                         </div>
                         
-                        {/* Enhanced Stats Grid */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                           <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
                             <Package className="h-4 w-4 text-gray-500" />
@@ -652,6 +678,7 @@ interface Sponsorship {
               </div>
             )}
           </div>
+          */}
         </TabsContent>
         
         <TabsContent value="totes-claimed">

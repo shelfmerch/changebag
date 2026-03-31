@@ -29,6 +29,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx", "server/src/services/send-rejection-email.ts", "server/src/services/send-approval-email.ts", "server/src/models/reupload-logo.ts", "src/services/paymentService.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js", "src/**/*.jsx", "causeconn/src/**/*.ts", "causeconn/src/**/*.tsx", "server/src/services/send-rejection-email.ts", "server/src/services/send-approval-email.ts", "server/src/models/reupload-logo.ts", "src/services/paymentService.ts"],
   "exclude": ["node_modules", "dist"]
 }
