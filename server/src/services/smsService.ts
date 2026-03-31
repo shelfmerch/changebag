@@ -1,9 +1,27 @@
 import axios from 'axios';
 
 // MSG91 Configuration
-const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY || "383885AfgFYzqZxpF634ff2e2P1";
-const MSG91_SENDER_ID = process.env.MSG91_SENDER_ID || "SHELF";
-const MSG91_OTP_TEMPLATE_ID = process.env.MSG91_OTP_TEMPLATE_ID || "670e1516d6fc055ee21c5e42";
+const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY?.trim() || '';
+const MSG91_SENDER_ID = process.env.MSG91_SENDER_ID?.trim() || '';
+const MSG91_OTP_TEMPLATE_ID = process.env.MSG91_OTP_TEMPLATE_ID?.trim() || '';
+
+const formatMSG91Mobile = (phone: string): string => {
+  let digits = phone.replace(/\D/g, '');
+
+  if (digits.startsWith('0')) {
+    digits = digits.substring(1);
+  }
+
+  if (digits.length === 10) {
+    return `91${digits}`;
+  }
+
+  if (digits.length > 10 && digits.startsWith('91')) {
+    return digits;
+  }
+
+  return digits;
+};
 
 /**
  * Sends an SMS with OTP using MSG91 REST API
@@ -28,23 +46,28 @@ export const sendVerificationSMS = async (phone: string, otp: string) => {
       };
     }
 
-    // Ensure phone number has country code
-    const formattedPhone = phone.startsWith('+') ? phone : `+91${phone}`;
+    // MSG91 expects the number in international format without a leading +
+    const formattedPhone = formatMSG91Mobile(phone);
     
     console.log('=== MSG91 SMS DEBUG ===');
-    console.log('Auth Key:', MSG91_AUTH_KEY);
     console.log('Sender ID:', MSG91_SENDER_ID);
     console.log('Template ID:', MSG91_OTP_TEMPLATE_ID);
     console.log('Phone:', formattedPhone);
-    console.log('OTP:', otp);
     
     // Method 1: Using MSG91 Flow API (recommended)
-    const flowUrl = 'https://control.msg91.com/api/v5/flow/';
+    const flowUrl = 'https://api.msg91.com/api/v5/flow/';
     const flowPayload = {
       flow_id: MSG91_OTP_TEMPLATE_ID,
       sender: MSG91_SENDER_ID,
-      mobiles: formattedPhone,
-      var1: otp // OTP variable in template
+      recipients: [
+        {
+          mobiles: formattedPhone,
+          VAR1: otp,
+          var1: otp,
+          OTP: otp,
+          otp: otp
+        }
+      ]
     };
 
     console.log('Sending SMS via MSG91 Flow API:', {
@@ -59,7 +82,7 @@ export const sendVerificationSMS = async (phone: string, otp: string) => {
       const response = await axios.post(flowUrl, flowPayload, {
         headers: {
           'Content-Type': 'application/json',
-          'Authkey': MSG91_AUTH_KEY
+          'authkey': MSG91_AUTH_KEY
         }
       });
 
@@ -81,24 +104,21 @@ export const sendVerificationSMS = async (phone: string, otp: string) => {
       console.error('MSG91 Flow API failed, trying legacy API:', flowError.message);
       console.error('Flow API Error Details:', flowError.response?.data);
       
-      // Method 2: Fallback to legacy MSG91 API
-      const legacyUrl = 'https://control.msg91.com/api/sendotp.php';
-      const legacyPayload = {
+      // Method 2: Fallback to the official SendOTP API with the same OTP
+      const legacyUrl = 'https://api.msg91.com/api/sendotp.php';
+      const legacyParams = new URLSearchParams({
         authkey: MSG91_AUTH_KEY,
-        mobile: formattedPhone.replace('+', ''),
+        mobile: formattedPhone,
         message: `Your verification code is ${otp}. Valid for 10 minutes.`,
         sender: MSG91_SENDER_ID,
-        otp: otp
-      };
+        otp: otp,
+        otp_expiry: '10'
+      });
 
-      console.log('Trying MSG91 Legacy API with payload:', legacyPayload);
+      console.log('Trying MSG91 SendOTP API');
 
       try {
-        const legacyResponse = await axios.post(legacyUrl, legacyPayload, {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          }
-        });
+        const legacyResponse = await axios.get(`${legacyUrl}?${legacyParams.toString()}`);
 
         console.log('MSG91 Legacy API response:', legacyResponse.data);
         console.log('MSG91 Legacy API status:', legacyResponse.status);
@@ -120,21 +140,17 @@ export const sendVerificationSMS = async (phone: string, otp: string) => {
         
         // Method 3: Try without sender ID (fallback)
         try {
-          const noSenderPayload = {
+          const noSenderParams = new URLSearchParams({
             authkey: MSG91_AUTH_KEY,
-            mobile: formattedPhone.replace('+', ''),
+            mobile: formattedPhone,
             message: `Your verification code is ${otp}. Valid for 10 minutes.`,
-            otp: otp
-            // Removed sender ID
-          };
-
-          console.log('Trying MSG91 without sender ID:', noSenderPayload);
-
-          const noSenderResponse = await axios.post(legacyUrl, noSenderPayload, {
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
-            }
+            otp: otp,
+            otp_expiry: '10'
           });
+
+          console.log('Trying MSG91 without sender ID');
+
+          const noSenderResponse = await axios.get(`${legacyUrl}?${noSenderParams.toString()}`);
 
           console.log('MSG91 No Sender ID response:', noSenderResponse.data);
 

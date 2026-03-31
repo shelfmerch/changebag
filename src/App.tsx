@@ -171,7 +171,7 @@ const App: React.FC = () => {
                   </ProtectedRoute>
                 } />
                 <Route path="/dashboard/claimer" element={
-                  <ProtectedRoute allowedRoles={['claimer', 'admin']}>
+                  <ProtectedRoute allowedRoles={['claimer', 'admin', 'user']}>
                     <ClaimerDashboard />
                   </ProtectedRoute>
                 } />
@@ -186,6 +186,7 @@ const App: React.FC = () => {
 
                 {/* Redirect old visitor dashboard to appropriate dashboard */}
                 <Route path="/dashboard/visitor" element={<Navigate to="/dashboard/claimer" replace />} />
+                <Route path="/dashboard/user" element={<Navigate to="/dashboard/claimer" replace />} />
 
                 {/* Admin Routes */}
                 <Route path="/admin/causes" element={
