@@ -30,6 +30,8 @@ const OnboardingWizard = ({
   const [causeData, setCauseData] = useState<any>(null);
   const [claimedTotes, setClaimedTotes] = useState(0);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [emailStatus, setEmailStatus] = useState<'unverified' | 'verified'>('unverified');
+  const [phoneStatus, setPhoneStatus] = useState<'unverified' | 'verified'>('unverified');
   const [formData, setFormData] = useState({
     organizationName: '',
     contactName: '',
@@ -182,6 +184,8 @@ const OnboardingWizard = ({
         email: user.email || prev.email,
         phone: user.phone || prev.phone,
       }));
+      if (user.emailVerified) setEmailStatus('verified');
+      if (user.phoneVerified) setPhoneStatus('verified');
     }
   }, [user]);
 
@@ -259,6 +263,12 @@ const OnboardingWizard = ({
         }
         if (!formData.phone || formData.phone.trim() === '') {
           return { isValid: false, message: 'Phone number is required' };
+        }
+        if (emailStatus !== 'verified') {
+          return { isValid: false, message: 'Please verify your email address' };
+        }
+        if (phoneStatus !== 'verified') {
+          return { isValid: false, message: 'Please verify your phone number' };
         }
         return { isValid: true };
 
@@ -504,6 +514,10 @@ const OnboardingWizard = ({
           updateFormData={updateFormData}
           causeData={causeData}
           validationError={validationError}
+          emailStatus={emailStatus}
+          phoneStatus={phoneStatus}
+          setEmailStatus={setEmailStatus}
+          setPhoneStatus={setPhoneStatus}
         />
       )}
 

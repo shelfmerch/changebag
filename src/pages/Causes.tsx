@@ -216,7 +216,13 @@ const CausesPage = () => {
     if (!hasApprovedSponsorship(cause)) {
       return (
         <Button
-          onClick={() => navigate(`/waitlist/${cause._id}`)}
+          onClick={() => {
+            if (!user) {
+              navigate(`/login?redirect=/waitlist/${cause._id}`);
+              return;
+            }
+            navigate(`/waitlist/${cause._id}`);
+          }}
           className="w-full"
           variant="outline"
         >

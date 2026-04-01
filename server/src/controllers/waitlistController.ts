@@ -121,22 +121,29 @@ export const getUserWaitlistEntries = async (req: Request, res: Response): Promi
       return;
     }
 
-    const waitlistEntries = await Waitlist.find({ email })
+    const searchEmail = email.toLowerCase().trim();
+    console.log(`Waitlist debug: Querying for email: "${searchEmail}"`);
+
+    const waitlistEntries = await Waitlist.find({ email: searchEmail })
+      .populate({
+        path: 'causeId',
+        select: 'title description imageUrl targetAmount currentAmount status isOnline'
+      })
       .sort({ createdAt: -1 })
       .select('-magicLinkToken');
 
-    // Populate cause details for each waitlist entry
-    const entriesWithCauseDetails = await Promise.all(
-      waitlistEntries.map(async (entry) => {
-        const cause = await Cause.findById(entry.causeId).select('title description imageUrl targetAmount currentAmount status isOnline');
-        return {
-          ...entry.toObject(),
-          cause: cause || null
-        };
-      })
-    );
+    console.log(`Waitlist debug: Found ${waitlistEntries.length} entries for ${searchEmail}`);
 
-    res.json(entriesWithCauseDetails);
+    // Map to the format the frontend expects (moving populated causeId to .cause property)
+    const result = waitlistEntries.map(entry => {
+      const entryObj = entry.toObject();
+      return {
+        ...entryObj,
+        cause: entryObj.causeId || null
+      };
+    });
+
+    res.json(result);
   } catch (error) {
     console.error('Error getting user waitlist entries:', error);
     res.status(500).json({ message: 'Error getting waitlist entries' });

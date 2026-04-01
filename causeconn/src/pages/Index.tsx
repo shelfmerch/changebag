@@ -303,10 +303,10 @@ const Index = () => {
                       </div>
                       <div className="flex justify-between mt-2">
                         <span className="text-sm text-gray-500">
-                          ${(cause.currentAmount || 0).toLocaleString()} raised
+                          ₹{(cause.currentAmount || 0).toLocaleString()} raised
                         </span>
                         <span className="text-sm text-gray-500">
-                          ${cause.targetAmount.toLocaleString()} goal
+                          ₹{cause.targetAmount.toLocaleString()} goal
                         </span>
                       </div>
                     </div>
