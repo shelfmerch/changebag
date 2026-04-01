@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { useAuth } from '@/context/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -20,7 +21,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
 import config from '@/config';
-import { Loader2, QrCode, Phone, CheckCircle } from 'lucide-react';
+import { Loader2, QrCode, Phone, Mail, CheckCircle } from 'lucide-react';
 
 enum ClaimStatus {
   PENDING = 'pending',
@@ -35,7 +36,7 @@ const regularClaimFormSchema = z.object({
   fullName: z.string().min(2, 'Full name is required'),
   email: z.string().email('Valid email is required'),
   phone: z.string().min(10, 'Valid phone number is required'),
-  purpose: z.string().min(2, 'Please describe how you plan to use the tote'),
+  // purpose: z.string().min(2, 'Please describe how you plan to use the tote'),
   address: z.string().min(5, 'Address is required'),
   city: z.string().min(2, 'City is required'),
   state: z.string().min(2, 'State is required'),
@@ -47,7 +48,6 @@ const qrClaimFormSchema = z.object({
   fullName: z.string().min(2, 'Full name is required'),
   email: z.string().email('Valid email is required'),
   phone: z.string().min(10, 'Valid phone number is required'),
-  purpose: z.string().min(2, 'Please describe how you plan to use the tote'),
 });
 
 type RegularClaimFormValues = z.infer<typeof regularClaimFormSchema>;
@@ -82,20 +82,35 @@ const ClaimFormPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const isFromWaitlist = searchParams.get('source') === 'waitlist';
   const source = searchParams.get('source') || 'direct';
   const referrerUrl = searchParams.get('ref') || document.referrer;
   
+  // Auth check
+  useEffect(() => {
+    if (!user) {
+      const currentPath = window.location.pathname + window.location.search;
+      navigate(`/login?redirect=${encodeURIComponent(currentPath)}`);
+    }
+  }, [user, navigate]);
+  
   // Detect if this is a QR code claim
   const isQrCodeClaim = source === 'qr' || document.referrer.includes('qr') || window.location.search.includes('qr');
 
-  // OTP verification states
-  const [showOtpVerification, setShowOtpVerification] = useState(false);
-  const [otp, setOtp] = useState('');
-  const [isOtpSent, setIsOtpSent] = useState(false);
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-  const [isSendingOtp, setIsSendingOtp] = useState(false);
-  const [claimData, setClaimData] = useState<any>(null);
+  // Inline verification states
+  const [emailStatus, setEmailStatus] = useState<'unverified' | 'sending' | 'pending' | 'verifying' | 'verified'>('unverified');
+  const [phoneStatus, setPhoneStatus] = useState<'unverified' | 'sending' | 'pending' | 'verifying' | 'verified'>('unverified');
+  const [emailOtp, setEmailOtp] = useState('');
+  const [phoneOtp, setPhoneOtp] = useState('');
+
+  // Sync with user auth status
+  useEffect(() => {
+    if (user) {
+      if (user.emailVerified) setEmailStatus('verified');
+      if (user.phoneVerified) setPhoneStatus('verified');
+    }
+  }, [user]);
 
   // Fetch cause data
   const { data: cause, isLoading, error } = useQuery<Cause>({
@@ -120,7 +135,7 @@ const ClaimFormPage = () => {
       fullName: '',
       email: '',
       phone: '',
-      purpose: '',
+      // purpose: '',
       address: '',
       city: '',
       state: '',
@@ -134,12 +149,22 @@ const ClaimFormPage = () => {
       fullName: '',
       email: '',
       phone: '',
-      purpose: '',
     },
   });
 
   // Use the appropriate form based on claim type
-  const form = isQrCodeClaim ? qrForm : regularForm;
+  const form = (isQrCodeClaim ? qrForm : regularForm) as any;
+  
+  // Auto-fill user data when user is available
+  useEffect(() => {
+    if (user) {
+      (form as any).setValue('fullName', user.name || '');
+      (form as any).setValue('email', user.email || '');
+      if (user.phone) {
+        (form as any).setValue('phone', user.phone);
+      }
+    }
+  }, [user, form]);
   
   // Check if user has already claimed a tote for this cause when they enter their email
   const checkExistingClaim = async (email: string) => {
@@ -176,12 +201,12 @@ const ClaimFormPage = () => {
             qrForm.setValue('fullName', data.fullName || '');
             qrForm.setValue('email', data.email || '');
             qrForm.setValue('phone', data.phone || '');
-            qrForm.setValue('purpose', data.purpose || '');
+            // qrForm.setValue('purpose', data.purpose || '');
           } else {
             regularForm.setValue('fullName', data.fullName || '');
             regularForm.setValue('email', data.email || '');
             regularForm.setValue('phone', data.phone || '');
-            regularForm.setValue('purpose', data.purpose || '');
+            // regularForm.setValue('purpose', data.purpose || '');
           }
           
           toast({
@@ -195,171 +220,115 @@ const ClaimFormPage = () => {
     }
   }, [isFromWaitlist, isQrCodeClaim, qrForm, regularForm]);
 
-  // Send OTP to phone number
-  const sendOtp = async (phone: string) => {
+  // Send OTP inline
+  const handleSendOtp = async (type: 'email' | 'sms') => {
+    const identifier = type === 'email' ? form.getValues('email') : form.getValues('phone');
+    if (!identifier) {
+      toast({ title: "Error", description: `Please enter a valid ${type}.`, variant: "destructive" });
+      return;
+    }
+
     try {
-      setIsSendingOtp(true);
-      const response = await axios.post(`${config.apiUrl}/otp/send-phone`, { phone });
+      if (type === 'email') setEmailStatus('sending');
+      else setPhoneStatus('sending');
+
+      const response = await axios.post(`${config.apiUrl}/auth/request-otp`, { identifier });
       
-      if (response.status === 200) {
-        setIsOtpSent(true);
+      if (response.data.success) {
+        if (type === 'email') setEmailStatus('pending');
+        else setPhoneStatus('pending');
+        
         toast({
           title: "OTP Sent",
-          description: "A verification code has been sent to your phone number.",
+          description: `Code sent to ${identifier}`,
         });
       }
     } catch (error: any) {
-      console.error('Error sending OTP:', error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "Failed to send OTP. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSendingOtp(false);
+      if (type === 'email') setEmailStatus('unverified');
+      else setPhoneStatus('unverified');
+      toast({ title: "Error", description: "Failed to send OTP", variant: "destructive" });
     }
   };
 
-  // Verify OTP
-  const verifyOtp = async () => {
-    if (!otp || !claimData) return;
+  // Verify OTP inline
+  const handleVerifyOtp = async (type: 'email' | 'sms') => {
+    const identifier = type === 'email' ? form.getValues('email') : form.getValues('phone');
+    const otpValue = type === 'email' ? emailOtp : phoneOtp;
+
+    if (!otpValue || otpValue.length < 4) return;
 
     try {
-      setIsVerifyingOtp(true);
-      const response = await axios.post(`${config.apiUrl}/otp/verify-phone`, {
-        phone: claimData.phone,
-        otp: otp
+      if (type === 'email') setEmailStatus('verifying');
+      else setPhoneStatus('verifying');
+
+      const response = await axios.post(`${config.apiUrl}/auth/verify-otp`, {
+        identifier,
+        otp: otpValue
       });
 
-      if (response.status === 200) {
-        // OTP verified successfully, submit the claim
-        await submitClaim();
+      if (response.data.success) {
+        if (type === 'email') setEmailStatus('verified');
+        else setPhoneStatus('verified');
+        toast({ title: "Verified", description: `${type === 'email' ? 'Email' : 'Phone'} verified successfully!` });
       }
     } catch (error: any) {
-      console.error('Error verifying OTP:', error);
-      toast({
-        title: "Verification Failed",
-        description: error.response?.data?.message || "Invalid OTP. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsVerifyingOtp(false);
+      if (type === 'email') setEmailStatus('pending');
+      else setPhoneStatus('pending');
+      toast({ title: "Error", description: "Invalid OTP", variant: "destructive" });
     }
   };
 
-  // Submit claim after OTP verification
-  const submitClaim = async () => {
-    if (!claimData) return;
-
+  // Submit claim final
+  const submitClaim = async (data: any) => {
     try {
-      // First, submit the claim
-      const response = await axios.post(`${config.apiUrl}/claims`, claimData);
-      
-      console.log('Claim submission response:', response.data);
-      
-      if (response.status === 201) {
-        const claimId = response.data._id;
-        
-        // Then verify the QR code claim
-        const verifyResponse = await axios.put(`${config.apiUrl}/claims/qr-verify/${claimId}`);
-        
-        if (verifyResponse.status === 200) {
-          toast({
-            title: "Claim Verified Successfully!",
-            description: "Your QR code claim has been verified and is ready for collection.",
-          });
-          
-          // Navigate to QR confirmation page
-          navigate('/claim/qr-confirmed');
-        } else {
-          throw new Error('Failed to verify claim');
-        }
-      }
-    } catch (error: any) {
-      console.error('Error submitting claim:', error);
-      toast({
-        title: "Error",
-        description: error.response?.data?.message || "There was a problem submitting your claim. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-  
-  const onSubmit = async (data: any) => {
-    if (!cause) return;
-
-    try {
-      // Check for existing claim first
-      const existingClaim = await checkExistingClaim(data.email);
-      if (existingClaim) {
-        return; // Stop here if user has already claimed
-      }
-
-      // Validate required fields for QR code claims
-      if (isQrCodeClaim) {
-        if (!data.fullName || !data.email || !data.phone || !data.purpose) {
-          toast({
-            title: "Validation Error",
-            description: "Please fill in all required fields before proceeding.",
-            variant: "destructive",
-          });
-          return;
-        }
-      }
-
-      // Determine if this is a QR code claim
       const qrCodeScanned = source === 'qr' || document.referrer.includes('qr') || window.location.search.includes('qr');
-      
-      // Prepare the claim data to match server model
       const claimDataToSubmit = {
         causeId: id,
-        causeTitle: cause.title,
+        causeTitle: cause?.title,
         fullName: data.fullName,
         email: data.email,
         phone: data.phone,
-        purpose: data.purpose,
-        // For QR code claims, use placeholder shipping address
+        purpose: data.purpose || 'QR Claim',
         address: isQrCodeClaim ? 'QR Code Claim - No Shipping Required' : data.address,
         city: isQrCodeClaim ? 'QR Code Claim' : data.city,
         state: isQrCodeClaim ? 'QR' : data.state,
         zipCode: isQrCodeClaim ? '00000' : data.zipCode,
-        emailVerified: false,
+        emailVerified: true,
+        phoneVerified: true,
         source: source,
         referrerUrl: referrerUrl,
         qrCodeScanned: qrCodeScanned
       };
+
+      const response = await axios.post(`${config.apiUrl}/claims`, claimDataToSubmit);
       
-      // Store data in session storage for verification steps
-      sessionStorage.setItem('claimFormData', JSON.stringify(claimDataToSubmit));
-      
-      if (isQrCodeClaim) {
-        // For QR code claims, show OTP verification
-        setClaimData(claimDataToSubmit);
-        setShowOtpVerification(true);
-        // Send OTP automatically
-        await sendOtp(data.phone);
-      } else {
-        // For regular claims, send data to server and navigate to verification
-        console.log('Submitting claim data:', claimDataToSubmit);
-        const response = await axios.post(`${config.apiUrl}/claims`, claimDataToSubmit);
-      
-      console.log('Claim submission response:', response.data);
-      
-      if (response.status !== 201) {
-        throw new Error(response.data.message || 'Failed to submit claim');
-      }
-      
-        // Navigate to verification page for regular claims
-      navigate('/claim/verify');
+      if (response.status === 201) {
+        if (isQrCodeClaim) {
+          const claimId = response.data._id;
+          await axios.put(`${config.apiUrl}/claims/qr-verify/${claimId}`);
+          navigate('/claim/qr-confirmed');
+        } else {
+          navigate('/claim/confirmed');
+        }
       }
     } catch (error: any) {
-      console.error('Error submitting claim:', error);
+      toast({ title: "Error", description: "Submission failed", variant: "destructive" });
+    }
+  };
+  
+  const onSubmit = async (data: any) => {
+    if (!cause || !user) return;
+
+    if (emailStatus !== 'verified' || phoneStatus !== 'verified') {
       toast({
-        title: "Error",
-        description: error.response?.data?.message || error.message || "There was a problem submitting your claim. Please try again.",
+        title: "Verification Required",
+        description: "Please verify both your email and phone number before submitting.",
         variant: "destructive",
       });
+      return;
     }
+
+    await submitClaim(data);
   };
 
   // Helper function to safely get sponsor info
@@ -427,135 +396,6 @@ const ClaimFormPage = () => {
     );
   }
 
-  // Show OTP verification for QR code claims
-  if (showOtpVerification && isQrCodeClaim) {
-    return (
-      <Layout>
-        <div className="bg-primary-50 py-10">
-          <div className="container mx-auto px-4">
-            <Button 
-              variant="ghost" 
-              onClick={() => setShowOtpVerification(false)} 
-              className="mb-4"
-            >
-              &larr; Back to Form
-            </Button>
-            
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold">Phone Verification</h1>
-              <div className="flex items-center gap-2 bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
-                <QrCode className="h-4 w-4" />
-                QR Code Claim
-              </div>
-            </div>
-            
-            <p className="text-lg text-gray-700 mb-6">
-              Please verify your phone number to complete your QR code claim
-            </p>
-          </div>
-        </div>
-        
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-md mx-auto">
-            <Card>
-              <CardContent className="p-6">
-                <div className="text-center space-y-6">
-                  <div className="flex justify-center">
-                    <div className="bg-blue-100 p-4 rounded-full">
-                      <Phone className="h-12 w-12 text-blue-600" />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h2 className="text-xl font-semibold mb-2">Verify Your Phone Number</h2>
-                    <p className="text-gray-600">
-                      We've sent a verification code to <span className="font-medium">{claimData?.phone}</span>
-                    </p>
-                  </div>
-
-                  {isOtpSent ? (
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <label htmlFor="otp" className="block text-sm font-medium text-gray-700">
-                          Enter Verification Code
-                        </label>
-                        <Input
-                          id="otp"
-                          type="text"
-                          value={otp}
-                          onChange={(e) => setOtp(e.target.value)}
-                          placeholder="Enter 6-digit code"
-                          maxLength={6}
-                          className="text-center text-lg tracking-widest"
-                        />
-                      </div>
-                      
-                      <div className="flex gap-3">
-                        <Button
-                          onClick={verifyOtp}
-                          disabled={!otp || otp.length !== 6 || isVerifyingOtp}
-                          className="flex-1"
-                          size="lg"
-                        >
-                          {isVerifyingOtp ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Verifying...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Verify & Submit Claim
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                      
-                      <div className="text-center">
-                        <Button
-                          variant="ghost"
-                          onClick={() => sendOtp(claimData?.phone)}
-                          disabled={isSendingOtp}
-                          className="text-sm"
-                        >
-                          {isSendingOtp ? 'Sending...' : 'Resend Code'}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <p className="text-gray-600">
-                        Click the button below to send a verification code to your phone.
-                      </p>
-                      
-                      <Button
-                        onClick={() => sendOtp(claimData?.phone)}
-                        disabled={isSendingOtp}
-                        size="lg"
-                        className="w-full"
-                      >
-                        {isSendingOtp ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Sending OTP...
-                          </>
-                        ) : (
-                          <>
-                            <Phone className="h-4 w-4 mr-2" />
-                            Send Verification Code
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
   
   return (
     <Layout>
@@ -617,47 +457,145 @@ const ClaimFormPage = () => {
                       />
                       
                       <FormField
-                        control={form.control}
+                        control={form.control as any}
                         name="email"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Email</FormLabel>
-                            <FormControl>
-                              <Input 
-                                type="email" 
-                                placeholder="jane.doe@example.com" 
-                                {...field} 
-                                onBlur={async (e) => {
-                                  field.onBlur();
-                                  if (e.target.value) {
-                                    await checkExistingClaim(e.target.value);
-                                  }
-                                }}
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              You can only claim one tote per cause with the same email address.
-                            </FormDescription>
+                            <div className="flex gap-2">
+                              <FormControl>
+                                <Input 
+                                  type="email" 
+                                  placeholder="jane.doe@example.com" 
+                                  {...field} 
+                                  disabled={emailStatus === 'pending' || emailStatus === 'verifying'}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    setEmailStatus('unverified');
+                                  }}
+                                />
+                              </FormControl>
+                              {emailStatus === 'unverified' && (
+                                <Button 
+                                  type="button" 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleSendOtp('email')}
+                                  className="shrink-0"
+                                >
+                                  Verify
+                                </Button>
+                              )}
+                              {(emailStatus === 'sending' || emailStatus === 'verifying') && (
+                                <Button type="button" variant="outline" size="sm" disabled className="shrink-0">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                </Button>
+                              )}
+                              {emailStatus === 'verified' && (
+                                <div className="flex items-center text-green-600 text-sm font-medium px-2 shrink-0">
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Verified
+                                </div>
+                              )}
+                            </div>
+                            {(emailStatus === 'pending' || emailStatus === 'verifying') && (
+                              <div className="mt-2 flex flex-col gap-2 p-3 bg-blue-50 rounded-md border border-blue-100">
+                                <p className="text-[10px] text-blue-700 font-bold uppercase tracking-wider">Enter Email OTP</p>
+                                <div className="flex gap-2">
+                                  <Input
+                                    placeholder="Code"
+                                    value={emailOtp}
+                                    onChange={(e) => setEmailOtp(e.target.value)}
+                                    maxLength={6}
+                                    className="h-8 text-center tracking-widest"
+                                  />
+                                  <Button 
+                                    type="button" 
+                                    size="sm" 
+                                    className="h-8"
+                                    onClick={() => handleVerifyOtp('email')}
+                                    disabled={emailStatus === 'verifying' || emailOtp.length < 4}
+                                  >
+                                    Confirm
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
                             <FormMessage />
                           </FormItem>
                         )}
                       />
                       
                       <FormField
-                        control={form.control}
+                        control={form.control as any}
                         name="phone"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Phone Number</FormLabel>
-                            <FormControl>
-                              <Input placeholder="(555) 123-4567" {...field} />
-                            </FormControl>
+                            <div className="flex gap-2">
+                              <FormControl>
+                                <Input 
+                                  placeholder="(555) 123-4567" 
+                                  {...field} 
+                                  disabled={phoneStatus === 'pending' || phoneStatus === 'verifying'}
+                                  onChange={(e) => {
+                                    field.onChange(e);
+                                    setPhoneStatus('unverified');
+                                  }}
+                                />
+                              </FormControl>
+                              {phoneStatus === 'unverified' && (
+                                <Button 
+                                  type="button" 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleSendOtp('sms')}
+                                  className="shrink-0"
+                                >
+                                  Verify
+                                </Button>
+                              )}
+                              {(phoneStatus === 'sending' || phoneStatus === 'verifying') && (
+                                <Button type="button" variant="outline" size="sm" disabled className="shrink-0">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                </Button>
+                              )}
+                              {phoneStatus === 'verified' && (
+                                <div className="flex items-center text-green-600 text-sm font-medium px-2 shrink-0">
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Verified
+                                </div>
+                              )}
+                            </div>
+                            {(phoneStatus === 'pending' || phoneStatus === 'verifying') && (
+                              <div className="mt-2 flex flex-col gap-2 p-3 bg-blue-50 rounded-md border border-blue-100">
+                                <p className="text-[10px] text-blue-700 font-bold uppercase tracking-wider">Enter Phone OTP</p>
+                                <div className="flex gap-2">
+                                  <Input
+                                    placeholder="Code"
+                                    value={phoneOtp}
+                                    onChange={(e) => setPhoneOtp(e.target.value)}
+                                    maxLength={6}
+                                    className="h-8 text-center tracking-widest"
+                                  />
+                                  <Button 
+                                    type="button" 
+                                    size="sm" 
+                                    className="h-8"
+                                    onClick={() => handleVerifyOtp('sms')}
+                                    disabled={phoneStatus === 'verifying' || phoneOtp.length < 4}
+                                  >
+                                    Confirm
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
                             <FormMessage />
                           </FormItem>
                         )}
                       />
                       
-                      <FormField
+                      {/* <FormField
                         control={form.control}
                         name="purpose"
                         render={({ field }) => (
@@ -675,7 +613,7 @@ const ClaimFormPage = () => {
                             <FormMessage />
                           </FormItem>
                         )}
-                      />
+                      /> */}
                     </div>
                     
                     {/* Only show shipping address for regular claims */}
@@ -755,7 +693,7 @@ const ClaimFormPage = () => {
                             Validating...
                           </>
                         ) : (
-                          isQrCodeClaim ? 'Continue to Phone Verification' : 'Continue to Verification'
+                          'Continue to Verification'
                         )}
                       </Button>
                     </div>

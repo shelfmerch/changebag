@@ -2,10 +2,15 @@ import { Request, Response, Router, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
+import { OAuth2Client } from 'google-auth-library';
 import User, { UserRole } from '../models/User';
 import { sendWelcomeEmail } from '../lib/email';
 import { createRouter } from '../utils/routerHelper';
 import { authGuard } from '../middleware/authGuard';
+import OTPVerification from '../models/OTPVerification';
+import { generateOTP, hashOTP, generateExpiryTime } from '../utils/otpUtils';
+import { sendVerificationEmail } from '../services/emailService';
+import { sendVerificationSMS } from '../services/smsService';
 
 dotenv.config();
 
@@ -13,6 +18,236 @@ const router: Router = createRouter();
 const JWT_SECRET = process.env.JWT_SECRET as string;
 const TOKEN_EXPIRY = '1h';
 const REFRESH_TOKEN_EXPIRY = '7d';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '119905627719-f7slrnitrpphqv28t7lc6049schg3qm3.apps.googleusercontent.com';
+const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+
+// Helper to generate tokens and set cookie
+const generateAndSetTokens = (user: any, res: Response) => {
+  const token = jwt.sign(
+    { userId: user._id, email: user.email, role: user.role },
+    JWT_SECRET,
+    { expiresIn: TOKEN_EXPIRY }
+  );
+
+  const refreshToken = jwt.sign(
+    { userId: user._id },
+    JWT_SECRET,
+    { expiresIn: REFRESH_TOKEN_EXPIRY }
+  );
+
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  });
+
+  return token;
+};
+
+// Standardize phone number format (copy from otpController)
+const standardizePhoneNumber = (phone: string): string => {
+  let cleaned = phone.replace(/[^\d+]/g, '');
+  if (cleaned.startsWith('+')) cleaned = cleaned.substring(1);
+  if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+  if (cleaned.startsWith('91') && cleaned.length > 10) cleaned = cleaned.substring(2);
+  if (cleaned.length === 10) return `+91${cleaned}`;
+  if (cleaned.length === 12 && cleaned.startsWith('91')) return `+${cleaned}`;
+  if (cleaned.length === 13 && cleaned.startsWith('91')) return `+${cleaned}`;
+  return `+91${cleaned}`;
+};
+
+// Request OTP
+router.post('/request-otp', async (req: Request, res: Response) => {
+  try {
+    const { identifier } = req.body;
+    if (!identifier) return res.status(400).json({ message: 'Email or mobile number is required' });
+
+    const isEmail = identifier.includes('@');
+    const otp = generateOTP();
+    const hashedOTP = hashOTP(otp);
+    const expiryTime = generateExpiryTime();
+
+    if (isEmail) {
+      await OTPVerification.create({
+        email: identifier.toLowerCase(),
+        otp: hashedOTP,
+        expiresAt: expiryTime,
+        type: 'email',
+      });
+      await sendVerificationEmail(identifier, otp);
+    } else {
+      const formattedPhone = standardizePhoneNumber(identifier);
+      await OTPVerification.create({
+        phone: formattedPhone,
+        otp: hashedOTP,
+        expiresAt: expiryTime,
+        type: 'sms',
+      });
+      await sendVerificationSMS(formattedPhone, otp);
+    }
+
+    res.json({ success: true, message: `OTP sent to ${identifier}` });
+  } catch (error) {
+    console.error('Request OTP error:', error);
+    res.status(500).json({ message: 'Error sending OTP' });
+  }
+});
+
+// Verify OTP
+router.post('/verify-otp', async (req: Request, res: Response) => {
+  try {
+    const { identifier, otp } = req.body;
+    if (!identifier || !otp) return res.status(400).json({ message: 'Identifier and OTP are required' });
+
+    const isEmail = identifier.includes('@');
+    const hashedOTP = hashOTP(otp);
+    const query = isEmail ? { email: identifier.toLowerCase(), type: 'email' } : { phone: standardizePhoneNumber(identifier), type: 'sms' };
+
+    const otpRecord = await OTPVerification.findOne({
+      ...query,
+      otp: hashedOTP,
+      expiresAt: { $gt: new Date() },
+      verified: false
+    });
+
+    if (!otpRecord) return res.status(400).json({ message: 'Invalid or expired OTP' });
+
+    otpRecord.verified = true;
+    await otpRecord.save();
+
+    // Check if user exists
+    const userQuery = isEmail ? { email: identifier.toLowerCase() } : { phone: standardizePhoneNumber(identifier) };
+    let user = await User.findOne(userQuery);
+
+    if (!user) {
+      return res.json({ success: true, isNewUser: true, message: 'OTP verified. Please complete registration.' });
+    }
+
+    // Update verification status for existing user
+    let updated = false;
+    if (isEmail && !user.emailVerified) {
+      user.emailVerified = true;
+      updated = true;
+    } else if (!isEmail && !user.phoneVerified) {
+      user.phoneVerified = true;
+      updated = true;
+    }
+    if (updated) await user.save();
+
+    const token = generateAndSetTokens(user, res);
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        emailVerified: user.emailVerified,
+        phoneVerified: user.phoneVerified
+      }
+    });
+  } catch (error) {
+    console.error('Verify OTP error:', error);
+    res.status(500).json({ message: 'Error verifying OTP' });
+  }
+});
+
+// Complete Registration
+router.post('/complete-registration', async (req: Request, res: Response) => {
+  try {
+    const { identifier, name } = req.body;
+    if (!identifier || !name) return res.status(400).json({ message: 'Identifier and name are required' });
+
+    const isEmail = identifier.includes('@');
+    const userQuery = isEmail ? { email: identifier.toLowerCase() } : { phone: standardizePhoneNumber(identifier) };
+    
+    let user = await User.findOne(userQuery);
+    if (user) return res.status(400).json({ message: 'User already exists' });
+
+    user = new User({
+      ...(isEmail ? { email: identifier.toLowerCase(), emailVerified: true } : { email: `${standardizePhoneNumber(identifier)}@changebag.local`, phone: standardizePhoneNumber(identifier), phoneVerified: true }),
+      name,
+      role: UserRole.USER
+    });
+
+    await user.save();
+    const token = generateAndSetTokens(user, res);
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        emailVerified: user.emailVerified,
+        phoneVerified: user.phoneVerified
+      }
+    });
+  } catch (error) {
+    console.error('Complete registration error:', error);
+    res.status(500).json({ message: 'Error completing registration' });
+  }
+});
+
+// Google login
+router.post('/google', async (req: Request, res: Response) => {
+  try {
+    const { credential } = req.body;
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: GOOGLE_CLIENT_ID,
+    });
+    
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) return res.status(400).json({ message: 'Invalid Google token' });
+
+    const { email, name, sub: googleId } = payload;
+    let user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      user = new User({
+        email: email.toLowerCase(),
+        name,
+        googleId,
+        role: UserRole.USER,
+        emailVerified: true
+      });
+      await user.save();
+    } else {
+      let updated = false;
+      if (!user.googleId) {
+        user.googleId = googleId;
+        updated = true;
+      }
+      if (!user.emailVerified) {
+        user.emailVerified = true;
+        updated = true;
+      }
+      if (updated) await user.save();
+    }
+
+    const token = generateAndSetTokens(user, res);
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        emailVerified: user.emailVerified,
+        phoneVerified: user.phoneVerified
+      }
+    });
+  } catch (error) {
+    console.error('Google login error:', error);
+    res.status(500).json({ message: 'Error during Google login' });
+  }
+});
+
 
 // Register a new user
 router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
@@ -80,7 +315,9 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
         id: newUser._id,
         email: newUser.email,
         role: newUser.role,
-        name: newUser.name
+        name: newUser.name,
+        emailVerified: newUser.emailVerified,
+        phoneVerified: newUser.phoneVerified
       }
     });
   } catch (error) {
@@ -138,7 +375,9 @@ router.post('/login', async (req: Request, res: Response, next: NextFunction) =>
         id: user._id,
         email: user.email,
         role: user.role,
-        name: user.name
+        name: user.name,
+        emailVerified: user.emailVerified,
+        phoneVerified: user.phoneVerified
       }
     });
   } catch (error) {
@@ -203,7 +442,9 @@ router.get('/me', authGuard, async (req: Request, res: Response) => {
         email: user.email,
         role: user.role,
         name: user.name,
-        phone: user.phone
+        phone: user.phone,
+        emailVerified: user.emailVerified,
+        phoneVerified: user.phoneVerified
       }
     });
   } catch (error) {

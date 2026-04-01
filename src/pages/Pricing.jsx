@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Navbar from '../components/Navbar'
-import Ticker from '../components/Ticker'
+// import Ticker from '../components/Ticker'
 import Footer from '../components/Footer'
 import useScrollReveal from '../hooks/useScrollReveal'
 import s from './Pricing.module.css'
@@ -255,7 +255,7 @@ export default function Pricing() {
         </div>
       </div>
 
-      <Ticker />
+      {/* <Ticker /> */}
 
       {/* PLANS */}
       <section className={s.section} style={{ background: 'var(--cream)' }}>

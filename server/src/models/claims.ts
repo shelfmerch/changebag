@@ -30,6 +30,7 @@ export interface IClaim extends Document {
   zipCode: string;
   status: ClaimStatus;
   emailVerified: boolean;
+  phoneVerified: boolean;
   source: ClaimSource;
   referrerUrl?: string;
   qrCodeScanned: boolean;
@@ -108,6 +109,10 @@ const claimSchema = new Schema<IClaim>(
       default: ClaimStatus.PENDING
     },
     emailVerified: {
+      type: Boolean,
+      default: false
+    },
+    phoneVerified: {
       type: Boolean,
       default: false
     },

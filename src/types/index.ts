@@ -6,6 +6,8 @@ export interface User {
   phone?: string;
   name: string;
   role: UserRole;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

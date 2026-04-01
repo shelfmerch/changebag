@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,8 @@ interface Cause {
 
 const CausesPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -160,11 +163,19 @@ const CausesPage = () => {
 
   // Handle claim button click
   const handleClaimAction = (cause: Cause) => {
+    if (!user) {
+      navigate(`/login?redirect=/claim/${cause._id}?source=direct&ref=causes-page`);
+      return;
+    }
     navigate(`/claim/${cause._id}?source=direct&ref=causes-page`);
   };
 
   // Handle sponsor button click
   const handleSponsorAction = (cause: Cause) => {
+    if (!user) {
+      navigate(`/login?redirect=/sponsor/new?causeId=${cause._id}`);
+      return;
+    }
     navigate(`/sponsor/new?causeId=${cause._id}`);
   };
 
@@ -173,7 +184,7 @@ const CausesPage = () => {
     if (hasApprovedSponsorship(cause)) {
       return (
         <Button
-          onClick={() => navigate(`/claim/${cause._id}?source=direct&ref=causes-page`)}
+          onClick={() => handleClaimAction(cause)}
           className="w-full bg-black text-white"
         >
           Claim a Tote
