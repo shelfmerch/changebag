@@ -52,6 +52,57 @@
   padding: 80px 0 60px; position: relative; z-index: 2;
 }
 .heroContent { max-width: 660px; }
+.heroLayout {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 660px) minmax(280px, 1fr);
+  gap: 48px;
+  align-items: center;
+}
+.heroVisualWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-self: end;
+  width: 100%;
+  max-width: 420px;
+}
+.heroVisualCard {
+  width: 100%;
+  perspective: 1800px;
+}
+.heroVisualInner {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(.22,1,.36,1);
+}
+.heroVisualCard:hover .heroVisualInner {
+  transform: rotateY(180deg);
+}
+.heroVisualFace {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  backface-visibility: hidden;
+  border-radius: 28px;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+  box-shadow: 0 32px 80px rgba(0,0,0,.28);
+  padding: 18px;
+}
+.heroVisualBack {
+  transform: rotateY(180deg);
+}
+.heroVisualHint {
+  margin-top: 18px;
+  font-size: 13px;
+  color: rgba(255,255,255,.5);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 
 .heroEyebrow {
   display: inline-flex; align-items: center; gap: 8px;
@@ -259,10 +310,21 @@
   .pricingGrid { grid-template-columns: 1fr; }
   .heroStats { gap: 20px; }
   .cpmCallout { flex-direction: column; }
+  .heroLayout { grid-template-columns: 1fr; }
+  .heroVisualWrap {
+    justify-self: start;
+    max-width: 360px;
+  }
 }
 @media (max-width: 600px) {
   .stepsGrid, .impactGrid { grid-template-columns: 1fr; }
   .container { padding: 0 20px; }
   .intro, .how, .compare, .impact, .pricing { padding: 64px 0; }
   .introStatsGrid, .problemPillars { grid-template-columns: 1fr; }
+  .heroVisualWrap { max-width: 100%; }
+  .heroVisualFace { padding: 14px; }
+  .heroVisualHint {
+    font-size: 11px;
+    text-align: center;
+  }
 }
