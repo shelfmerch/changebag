@@ -566,9 +566,7 @@ const HomePage: FC = () => {
             <h1 className={s.heroH1}>Your brand on<br /><em>a million hands.</em></h1>
             <span className={s.heroH1Line2}>With a cause.</span>
             <p className={s.heroSub}>
-              Sponsor branded tote bags distributed <strong>free to citizens</strong> across India.
-              Real impressions. Real communities. An ESG impact report included —
-              at <strong>80% lower cost</strong> than traditional outdoor advertising.
+              The world's <strong>first sustainable purpose media platform</strong>- sponsoring branded tote bags distributed free across India, with an <strong>ESG impact report included</strong>, at <strong>80% lower cost </strong> than traditional outdoor advertising.
             </p>
             <div className={s.heroCtas}>
               <button className={s.btnHeroPrimary} onClick={() => navigate('/causes')} >

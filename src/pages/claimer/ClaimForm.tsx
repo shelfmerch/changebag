@@ -33,21 +33,27 @@ enum ClaimStatus {
 
 // Regular claim form schema (with shipping address)
 const regularClaimFormSchema = z.object({
-  fullName: z.string().min(2, 'Full name is required'),
+  fullName: z.string()
+    .min(2, 'Full name is required')
+    .regex(/^[a-zA-Z\s']+$/, 'Full name can only contain letters, spaces, and apostrophes'),
   email: z.string().email('Valid email is required'),
-  phone: z.string().min(10, 'Valid phone number is required'),
+  phone: z.string()
+    .regex(/^\d{10}$/, 'Phone number must be exactly 10 digits'),
   // purpose: z.string().min(2, 'Please describe how you plan to use the tote'),
-  address: z.string().min(5, 'Address is required'),
+  address: z.string().min(1, 'Street address is required'),
   city: z.string().min(2, 'City is required'),
   state: z.string().min(2, 'State is required'),
-  zipCode: z.string().min(5, 'ZIP code is required'),
+  zipCode: z.string().regex(/^\d{6}$/, 'PIN Code must be exactly 6 digits'),
 });
 
 // Simplified QR code claim form schema (without shipping address)
 const qrClaimFormSchema = z.object({
-  fullName: z.string().min(2, 'Full name is required'),
+  fullName: z.string()
+    .min(2, 'Full name is required')
+    .regex(/^[a-zA-Z\s']+$/, 'Full name can only contain letters, spaces, and apostrophes'),
   email: z.string().email('Valid email is required'),
-  phone: z.string().min(10, 'Valid phone number is required'),
+  phone: z.string()
+    .regex(/^\d{10}$/, 'Phone number must be exactly 10 digits'),
 });
 
 type RegularClaimFormValues = z.infer<typeof regularClaimFormSchema>;
@@ -131,20 +137,23 @@ const ClaimFormPage = () => {
   // Use different form schemas based on claim type
   const regularForm = useForm<RegularClaimFormValues>({
     resolver: zodResolver(regularClaimFormSchema),
+    mode: 'onChange',
     defaultValues: {
       fullName: '',
       email: '',
       phone: '',
       // purpose: '',
       address: '',
-      city: '',
-      state: '',
       zipCode: '',
+      state: '',
+      city: '',
+      
     },
   });
 
   const qrForm = useForm<QrClaimFormValues>({
     resolver: zodResolver(qrClaimFormSchema),
+    mode: 'onChange',
     defaultValues: {
       fullName: '',
       email: '',
@@ -220,6 +229,29 @@ const ClaimFormPage = () => {
     }
   }, [isFromWaitlist, isQrCodeClaim, qrForm, regularForm]);
 
+  // Auto-fill address based on PIN code
+  const watchedZipCode = form.watch('zipCode');
+  useEffect(() => {
+    const fetchPinCodeData = async (pin: string) => {
+      if (pin.length === 6 && /^\d+$/.test(pin)) {
+        try {
+          const response = await axios.get(`https://api.postalpincode.in/pincode/${pin}`);
+          if (response.data && response.data[0].Status === 'Success') {
+            const postOffice = response.data[0].PostOffice[0];
+            form.setValue('city', postOffice.District);
+            form.setValue('state', postOffice.State);
+          }
+        } catch (error) {
+          console.error('Error fetching PIN code details:', error);
+        }
+      }
+    };
+
+    if (watchedZipCode && !isQrCodeClaim) {
+      fetchPinCodeData(watchedZipCode);
+    }
+  }, [watchedZipCode, form, isQrCodeClaim]);
+
   // Send OTP inline
   const handleSendOtp = async (type: 'email' | 'sms') => {
     const identifier = type === 'email' ? form.getValues('email') : form.getValues('phone');
@@ -261,6 +293,13 @@ const ClaimFormPage = () => {
       if (type === 'email') setEmailStatus('verifying');
       else setPhoneStatus('verifying');
 
+      // Test OTP logic for phone
+      if (type === 'sms' && otpValue === '123456') {
+        setPhoneStatus('verified');
+        toast({ title: "Verified", description: "Phone verified successfully using test OTP!" });
+        return;
+      }
+
       const response = await axios.post(`${config.apiUrl}/auth/verify-otp`, {
         identifier,
         otp: otpValue
@@ -288,11 +327,11 @@ const ClaimFormPage = () => {
         fullName: data.fullName,
         email: data.email,
         phone: data.phone,
-        purpose: data.purpose || 'QR Claim',
+        // purpose: data.purpose || (isQrCodeClaim ? 'QR Claim' : 'Direct Claim'),
         address: isQrCodeClaim ? 'QR Code Claim - No Shipping Required' : data.address,
-        city: isQrCodeClaim ? 'QR Code Claim' : data.city,
-        state: isQrCodeClaim ? 'QR' : data.state,
         zipCode: isQrCodeClaim ? '00000' : data.zipCode,
+        state: isQrCodeClaim ? 'QR' : data.state,
+        city: isQrCodeClaim ? 'QR Code Claim' : data.city,
         emailVerified: true,
         phoneVerified: true,
         source: source,
@@ -312,7 +351,11 @@ const ClaimFormPage = () => {
         }
       }
     } catch (error: any) {
-      toast({ title: "Error", description: "Submission failed", variant: "destructive" });
+      toast({ 
+        title: "Submission Failed", 
+        description: error.response?.data?.message || "Something went wrong while submitting your claim. Please try again.", 
+        variant: "destructive" 
+      });
     }
   };
   
@@ -441,209 +484,16 @@ const ClaimFormPage = () => {
                 
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="fullName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Full Name</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Jane Doe" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={form.control as any}
-                        name="email"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Email</FormLabel>
-                            <div className="flex gap-2">
-                              <FormControl>
-                                <Input 
-                                  type="email" 
-                                  placeholder="jane.doe@example.com" 
-                                  {...field} 
-                                  disabled={emailStatus === 'pending' || emailStatus === 'verifying'}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    setEmailStatus('unverified');
-                                  }}
-                                />
-                              </FormControl>
-                              {emailStatus === 'unverified' && (
-                                <Button 
-                                  type="button" 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => handleSendOtp('email')}
-                                  className="shrink-0"
-                                >
-                                  Verify
-                                </Button>
-                              )}
-                              {(emailStatus === 'sending' || emailStatus === 'verifying') && (
-                                <Button type="button" variant="outline" size="sm" disabled className="shrink-0">
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                </Button>
-                              )}
-                              {emailStatus === 'verified' && (
-                                <div className="flex items-center text-green-600 text-sm font-medium px-2 shrink-0">
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  Verified
-                                </div>
-                              )}
-                            </div>
-                            {(emailStatus === 'pending' || emailStatus === 'verifying') && (
-                              <div className="mt-2 flex flex-col gap-2 p-3 bg-blue-50 rounded-md border border-blue-100">
-                                <p className="text-[10px] text-blue-700 font-bold uppercase tracking-wider">Enter Email OTP</p>
-                                <div className="flex gap-2">
-                                  <Input
-                                    placeholder="Code"
-                                    value={emailOtp}
-                                    onChange={(e) => setEmailOtp(e.target.value)}
-                                    maxLength={6}
-                                    className="h-8 text-center tracking-widest"
-                                  />
-                                  <Button 
-                                    type="button" 
-                                    size="sm" 
-                                    className="h-8"
-                                    onClick={() => handleVerifyOtp('email')}
-                                    disabled={emailStatus === 'verifying' || emailOtp.length < 4}
-                                  >
-                                    Confirm
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={form.control as any}
-                        name="phone"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Phone Number</FormLabel>
-                            <div className="flex gap-2">
-                              <FormControl>
-                                <Input 
-                                  placeholder="(555) 123-4567" 
-                                  {...field} 
-                                  disabled={phoneStatus === 'pending' || phoneStatus === 'verifying'}
-                                  onChange={(e) => {
-                                    field.onChange(e);
-                                    setPhoneStatus('unverified');
-                                  }}
-                                />
-                              </FormControl>
-                              {phoneStatus === 'unverified' && (
-                                <Button 
-                                  type="button" 
-                                  variant="outline" 
-                                  size="sm" 
-                                  onClick={() => handleSendOtp('sms')}
-                                  className="shrink-0"
-                                >
-                                  Verify
-                                </Button>
-                              )}
-                              {(phoneStatus === 'sending' || phoneStatus === 'verifying') && (
-                                <Button type="button" variant="outline" size="sm" disabled className="shrink-0">
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                </Button>
-                              )}
-                              {phoneStatus === 'verified' && (
-                                <div className="flex items-center text-green-600 text-sm font-medium px-2 shrink-0">
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  Verified
-                                </div>
-                              )}
-                            </div>
-                            {(phoneStatus === 'pending' || phoneStatus === 'verifying') && (
-                              <div className="mt-2 flex flex-col gap-2 p-3 bg-blue-50 rounded-md border border-blue-100">
-                                <p className="text-[10px] text-blue-700 font-bold uppercase tracking-wider">Enter Phone OTP</p>
-                                <div className="flex gap-2">
-                                  <Input
-                                    placeholder="Code"
-                                    value={phoneOtp}
-                                    onChange={(e) => setPhoneOtp(e.target.value)}
-                                    maxLength={6}
-                                    className="h-8 text-center tracking-widest"
-                                  />
-                                  <Button 
-                                    type="button" 
-                                    size="sm" 
-                                    className="h-8"
-                                    onClick={() => handleVerifyOtp('sms')}
-                                    disabled={phoneStatus === 'verifying' || phoneOtp.length < 4}
-                                  >
-                                    Confirm
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      {/* <FormField
-                        control={form.control}
-                        name="purpose"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Purpose</FormLabel>
-                            <FormControl>
-                              <Input 
-                                placeholder="How will you use this tote?" 
-                                {...field} 
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Briefly describe how you plan to use the tote
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      /> */}
-                    </div>
-                    
-                    {/* Only show shipping address for regular claims */}
-                    {!isQrCodeClaim && (
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Shipping Address</h3>
-                      
-                      <FormField
-                        control={form.control}
-                        name="address"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Street Address</FormLabel>
-                            <FormControl>
-                              <Input placeholder="123 Main St" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <FormField
                           control={form.control}
-                          name="city"
+                          name="fullName"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>City</FormLabel>
+                              <FormLabel>Full Name</FormLabel>
                               <FormControl>
-                                <Input placeholder="Anytown" {...field} />
+                                <Input placeholder="John Doe" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -651,51 +501,221 @@ const ClaimFormPage = () => {
                         />
                         
                         <FormField
-                          control={form.control}
-                          name="state"
+                          control={form.control as any}
+                          name="email"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>State</FormLabel>
-                              <FormControl>
-                                <Input placeholder="CA" {...field} />
-                              </FormControl>
+                              <FormLabel>Email Address</FormLabel>
+                              <div className="flex gap-2">
+                                <FormControl>
+                                  <Input 
+                                    placeholder="john@example.com" 
+                                    {...field} 
+                                    disabled={emailStatus === 'verified' || emailStatus === 'sending' || emailStatus === 'verifying'} 
+                                  />
+                                </FormControl>
+                                {emailStatus === 'verified' ? (
+                                  <div className="flex items-center text-green-600 text-sm font-medium px-2 shrink-0">
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                    Verified
+                                  </div>
+                                ) : (
+                                  <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleSendOtp('email')}
+                                    disabled={emailStatus === 'sending' || emailStatus === 'verifying' || !field.value}
+                                    className="shrink-0"
+                                  >
+                                    {emailStatus === 'sending' ? <Loader2 className="h-4 w-4 animate-spin" /> : emailStatus === 'pending' ? "Resend" : "Verify"}
+                                  </Button>
+                                )}
+                              </div>
+                              {(emailStatus === 'pending' || emailStatus === 'verifying') && (
+                                <div className="mt-2 p-3 bg-blue-50 rounded-md border border-blue-100">
+                                  <p className="text-[10px] text-blue-700 font-bold uppercase tracking-wider mb-2">Enter Email Code</p>
+                                  <div className="flex gap-2">
+                                    <Input 
+                                      placeholder="Code"
+                                      value={emailOtp}
+                                      onChange={(e) => setEmailOtp(e.target.value)}
+                                      maxLength={6}
+                                      className="h-8 text-center tracking-widest font-mono"
+                                    />
+                                    <Button 
+                                      type="button" 
+                                      size="sm" 
+                                      className="h-8"
+                                      onClick={() => handleVerifyOtp('email')}
+                                      disabled={emailStatus === 'verifying' || emailOtp.length < 4}
+                                    >
+                                      {emailStatus === 'verifying' ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
                               <FormMessage />
                             </FormItem>
                           )}
                         />
+                        <FormField
+                          control={form.control as any}
+                            name="phone"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Phone Number</FormLabel>
+                                <div className="flex gap-2">
+                                  <div className="flex items-center bg-gray-100 px-3 border border-r-0 rounded-l-md text-gray-500 font-medium">+91</div>
+                                  <FormControl>
+                                    <Input 
+                                      placeholder="9876543210" 
+                                      {...field} 
+                                      className="rounded-l-none"
+                                      disabled={phoneStatus === 'verified'}
+                                      onChange={(e) => {
+                                        const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                        field.onChange(value);
+                                        setPhoneStatus('unverified');
+                                      }}
+                                    />
+                                  </FormControl>
+                                  {phoneStatus === 'verified' ? (
+                                    <div className="flex items-center text-green-600 text-sm font-medium px-2 shrink-0">
+                                      <CheckCircle className="h-4 w-4 mr-1" />
+                                      Verified
+                                    </div>
+                                  ) : (
+                                    <Button 
+                                      type="button" 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => handleSendOtp('sms')}
+                                      disabled={phoneStatus === 'sending' || phoneStatus === 'verifying' || field.value.length < 10}
+                                      className="shrink-0"
+                                    >
+                                      {phoneStatus === 'sending' ? <Loader2 className="h-4 w-4 animate-spin" /> : phoneStatus === 'pending' ? "Resend" : "Verify"}
+                                    </Button>
+                                  )}
+                                </div>
+                                {(phoneStatus === 'pending' || phoneStatus === 'verifying') && (
+                                  <div className="mt-2 p-3 bg-blue-50 rounded-md border border-blue-100">
+                                    <p className="text-[10px] text-blue-700 font-bold uppercase tracking-wider mb-2">Enter Phone Code (Test: 123456)</p>
+                                    <div className="flex gap-2">
+                                      <Input 
+                                        placeholder="Code"
+                                        value={phoneOtp}
+                                        onChange={(e) => setPhoneOtp(e.target.value)}
+                                        maxLength={6}
+                                        className="h-8 text-center tracking-widest font-mono"
+                                      />
+                                      <Button 
+                                        type="button" 
+                                        size="sm" 
+                                        className="h-8"
+                                        onClick={() => handleVerifyOtp('sms')}
+                                        disabled={phoneStatus === 'verifying' || phoneOtp.length < 4}
+                                      >
+                                        {phoneStatus === 'verifying' ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                )}
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        {!isQrCodeClaim && (
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-medium">Shipping Address</h3>
                         
                         <FormField
                           control={form.control}
-                          name="zipCode"
+                          name="address"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>ZIP Code</FormLabel>
+                              <FormLabel>Street Address</FormLabel>
                               <FormControl>
-                                <Input placeholder="12345" {...field} />
+                                <Input placeholder="123 Main St" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
+                      
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <FormField
+                            control={form.control}
+                            name="zipCode"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>PIN Code</FormLabel>
+                                <FormControl>
+                                  <Input 
+                                    placeholder="400001" 
+                                    {...field} 
+                                    maxLength={6}
+                                    onChange={(e) => {
+                                      const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                                      field.onChange(value);
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={form.control}
+                            name="state"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>State</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Maharashtra" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="city"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>City</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Mumbai" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
                       </div>
-                    </div>
-                    )}
-                    
-                    <div className="flex justify-end">
-                      <Button 
-                        type="submit" 
-                        size="lg"
-                        disabled={form.formState.isSubmitting}
-                      >
-                        {form.formState.isSubmitting ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Validating...
-                          </>
-                        ) : (
-                          'Continue to Verification'
-                        )}
-                      </Button>
+                      )}
+
+                      <div className="flex justify-end pt-6 border-t mt-8">
+                        <Button 
+                          type="submit" 
+                          size="lg"
+                          className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white"
+                          disabled={form.formState.isSubmitting || emailStatus !== 'verified' || phoneStatus !== 'verified'}
+                        >
+                          {form.formState.isSubmitting ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Submitting Claim...
+                            </>
+                          ) : (
+                            'Finalize Claim'
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </form>
                 </Form>
@@ -773,11 +793,11 @@ const ClaimFormPage = () => {
                     </div>
                   ) : (
                     <>
-                  <div className="bg-yellow-50 border border-yellow-100 rounded p-4 text-sm text-yellow-800">
+                  {/* <div className="bg-yellow-50 border border-yellow-100 rounded p-4 text-sm text-yellow-800">
                     <p>
                       <span className="font-semibold">Note:</span> After submission, you'll need to verify your email and phone to complete your claim.
                     </p>
-                  </div>
+                  </div> */}
                   
                   <div className="bg-blue-50 border border-blue-100 rounded p-4 mt-4 text-sm text-blue-800">
                     <p>

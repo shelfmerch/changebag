@@ -14,15 +14,15 @@ const CITIES = [
 
 const CASE_STUDIES = [
   {
-    logo: 'IO', brand: 'IndianOil', cause: '× Green Mission India',
+    logo: 'IO', brand: 'A leading oil & gas enterprise', cause: ' Green Mission India',
     tag: 'PSU · Sustainability', tagBg: '#e8f5ee', tagColor: '#1a6b3a',
     title: 'Clean Energy, Clean India — National Campaign',
     stats: [['50K','Bags out'],['25M+','Impressions'],['240+','Cities']],
     quote: '"The campaign gave us a visible, physical presence in communities w\'d never reached through digital or OOH."',
-    cite: '— CSR Head, IndianOil',
+    cite: '— CSR Head ',
   },
   {
-    logo: 'IA', brand: 'Indian Army', cause: '× Recruitment Drive',
+    logo: 'IA', brand: 'A national defense organization', cause: ' Recruitment Drive',
     tag: 'Government · National pride', tagBg: '#f0ebff', tagColor: '#5a3db0',
     title: 'Join the Indian Army — Grassroots Awareness',
     stats: [['30K','Bags out'],['120M+','Social reach'],['50K+','Ambassadors']],
@@ -30,12 +30,12 @@ const CASE_STUDIES = [
     cite: '— Campaign Director',
   },
   {
-    logo: 'DA', brand: 'Dr. Agarwals Eye Care', cause: '× Digital Detox',
+    logo: 'DA', brand: 'A prominent eye care provider', cause: ' Digital Detox',
     tag: 'Healthcare · Awareness', tagBg: '#fff3cd', tagColor: '#856404',
     title: 'Digital Detox: Better Eye & Mental Health',
     stats: [['8K','Bags out'],['18.4K','QR scans'],['23%','Appt uptick']],
     quote: '"Conversion from bag QR scan to clinic appointment became our most efficient acquisition channel."',
-    cite: '— Marketing Head, Dr. Agarwals',
+    cite: '— Marketing Head',
   },
 ]
 
@@ -160,7 +160,7 @@ export default function Impact() {
               <div key={c.brand} className={`${s.caseCard} reveal`} style={{ transitionDelay: `${i * 0.1}s` }}>
                 <div className={s.caseHeader}>
                   <div className={s.caseBrandRow}>
-                    <div className={s.caseLogo}>{c.logo}</div>
+                    {/* <div className={s.caseLogo}>{c.logo}</div> */}
                     <div><div className={s.caseBrand}>{c.brand}</div><div className={s.caseCause}>{c.cause}</div></div>
                   </div>
                   <span className={s.caseTag} style={{ background: c.tagBg, color: c.tagColor }}>{c.tag}</span>
@@ -186,7 +186,7 @@ export default function Impact() {
       </section>
 
       {/* TIMELINE */}
-      <section className={s.section} style={{ background: 'var(--cream-dark)', borderTop: '1px solid rgba(26,26,20,0.05)' }}>
+      {/* <section className={s.section} style={{ background: 'var(--cream-dark)', borderTop: '1px solid rgba(26,26,20,0.05)' }}>
         <div className={s.container}>
           <div className="reveal">
             <span className={s.label}>Our journey</span>
@@ -206,10 +206,10 @@ export default function Impact() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* MEDIA */}
-      <section style={{ background: 'var(--cream)', padding: '64px 0', borderTop: '1px solid rgba(26,26,20,0.05)' }}>
+      {/* <section style={{ background: 'var(--cream)', padding: '64px 0', borderTop: '1px solid rgba(26,26,20,0.05)' }}>
         <div className={s.container}>
           <p className={s.mediaLabel}>As seen in</p>
           <div className={s.mediaGrid}>
@@ -222,7 +222,7 @@ export default function Impact() {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* CTA */}
       <section className={s.ctaStrip}>

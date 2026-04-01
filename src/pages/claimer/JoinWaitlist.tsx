@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { useAuth } from '@/context/AuthContext';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Layout from '@/components/Layout';
@@ -25,9 +26,9 @@ import config from '@/config';
 import axios from 'axios';
 
 const waitlistFormSchema = z.object({
-  fullName: z.string().min(2, 'Full name is required'),
-  email: z.string().email('Valid email is required'),
-  phone: z.string().min(10, 'Valid phone number is required'),
+  fullName: z.string().min(2, 'Full name must be at least 2 characters'),
+  email: z.string().email('Invalid email address'),
+  phone: z.string().regex(/^\d{10}$/, 'Phone number must be exactly 10 digits'),
   message: z.string().optional(),
   notifyEmail: z.boolean().default(true),
   notifySms: z.boolean().default(false),
@@ -53,7 +54,9 @@ interface Cause {
 const JoinWaitlistPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [cause, setCause] = useState<Cause | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -62,14 +65,34 @@ const JoinWaitlistPage = () => {
   const form = useForm<WaitlistFormValues>({
     resolver: zodResolver(waitlistFormSchema),
     defaultValues: {
-      fullName: '',
-      email: '',
-      phone: '',
+      fullName: user?.name || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
       message: '',
       notifyEmail: true,
       notifySms: false,
     },
   });
+
+  // Protect route and auto-fill data
+  useEffect(() => {
+    if (!user && !isAuthLoading && !loading) {
+      const currentPath = location.pathname + location.search;
+      navigate(`/login?redirect=${encodeURIComponent(currentPath)}`);
+      return;
+    }
+
+    if (user) {
+      form.reset({
+        fullName: user.name || '',
+        email: user.email || '',
+        phone: user.phone || '',
+        message: form.getValues('message'),
+        notifyEmail: form.getValues('notifyEmail'),
+        notifySms: form.getValues('notifySms'),
+      });
+    }
+  }, [user, isAuthLoading, loading, navigate, location.pathname, location.search, form]);
 
   // Fetch cause data
   useEffect(() => {
@@ -198,7 +221,7 @@ const JoinWaitlistPage = () => {
                         name="fullName"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Full Name</FormLabel>
+                            <FormLabel>Full Name <span className="text-red-500">*</span></FormLabel>
                             <FormControl>
                               <Input placeholder="Jane Doe" {...field} />
                             </FormControl>
@@ -212,7 +235,7 @@ const JoinWaitlistPage = () => {
                         name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Email</FormLabel>
+                            <FormLabel>Email <span className="text-red-500">*</span></FormLabel>
                             <FormControl>
                               <Input type="email" placeholder="jane.doe@example.com" {...field} />
                             </FormControl>
@@ -228,9 +251,9 @@ const JoinWaitlistPage = () => {
                         name="phone"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Phone Number</FormLabel>
+                            <FormLabel>Phone Number <span className="text-red-500">*</span></FormLabel>
                             <FormControl>
-                              <Input placeholder="(555) 123-4567" {...field} />
+                              <Input placeholder="Enter 10-digit phone number" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

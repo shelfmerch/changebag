@@ -54,6 +54,7 @@ import WaitlistEmailPreviewPage from "./pages/claimer/WaitlistEmailPreview";
 // Dashboard Pages
 import SponsorDashboard from "./pages/dashboard/SponsorDashboard";
 import ClaimerDashboard from "./pages/dashboard/ClaimerDashboard";
+import UnifiedDashboard from "./pages/dashboard/UnifiedDashboard";
 import AdminDashboard from "./pages/dashboard/AdminDashboard";
 
 // Admin Pages
@@ -165,13 +166,18 @@ const App: React.FC = () => {
                 <Route path="/demo/waitlist-email" element={<WaitlistEmailPreviewPage />} />
 
                 {/* Dashboard Routes */}
+                <Route path="/dashboard" element={
+                  <ProtectedRoute allowedRoles={['claimer', 'sponsor', 'admin', 'user']}>
+                    <UnifiedDashboard />
+                  </ProtectedRoute>
+                } />
                 <Route path="/dashboard/sponsor" element={
-                  <ProtectedRoute allowedRoles={['sponsor', 'admin']}>
+                  <ProtectedRoute allowedRoles={['claimer', 'sponsor', 'admin', 'user']}>
                     <SponsorDashboard />
                   </ProtectedRoute>
                 } />
                 <Route path="/dashboard/claimer" element={
-                  <ProtectedRoute allowedRoles={['claimer', 'admin', 'user']}>
+                  <ProtectedRoute allowedRoles={['claimer', 'sponsor', 'admin', 'user']}>
                     <ClaimerDashboard />
                   </ProtectedRoute>
                 } />
@@ -185,8 +191,8 @@ const App: React.FC = () => {
                 <Route path="/unauthorized" element={<Unauthorized />} />
 
                 {/* Redirect old visitor dashboard to appropriate dashboard */}
-                <Route path="/dashboard/visitor" element={<Navigate to="/dashboard/claimer" replace />} />
-                <Route path="/dashboard/user" element={<Navigate to="/dashboard/claimer" replace />} />
+                <Route path="/dashboard/visitor" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard/user" element={<Navigate to="/dashboard" replace />} />
 
                 {/* Admin Routes */}
                 <Route path="/admin/causes" element={

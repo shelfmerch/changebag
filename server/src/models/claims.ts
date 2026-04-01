@@ -23,7 +23,7 @@ export interface IClaim extends Document {
   fullName: string;
   email: string;
   phone: string;
-  purpose: string;
+  // purpose: string;
   address: string;
   city: string;
   state: string;
@@ -83,10 +83,10 @@ const claimSchema = new Schema<IClaim>(
       type: String,
       required: true
     },
-    purpose: {
-      type: String,
-      required: true
-    },
+    // purpose: {
+    //   type: String,
+    //   required: true
+    // },
     address: {
       type: String,
       required: true

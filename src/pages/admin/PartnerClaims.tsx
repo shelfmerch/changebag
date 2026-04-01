@@ -34,7 +34,7 @@ interface Claim {
   fullName: string;
   email: string;
   phone: string;
-  purpose: string;
+  // purpose: string;
   address: string;
   city: string;
   state: string;
@@ -251,10 +251,10 @@ const PartnerClaims = () => {
                         <p className="text-sm text-gray-500">Phone</p>
                         <p className="font-medium">{claim.phone}</p>
                       </div>
-                      <div>
+                      {/* <div>
                         <p className="text-sm text-gray-500">Purpose</p>
                         <p className="font-medium">{claim.purpose}</p>
-                      </div>
+                      </div> */}
                       <div>
                         <p className="text-sm text-gray-500">Claim Date</p>
                         <p className="font-medium">{new Date(claim.createdAt).toLocaleDateString()}</p>
@@ -342,10 +342,10 @@ const PartnerClaims = () => {
                   <p className="text-sm font-medium text-gray-500">Cause</p>
                   <p className="text-lg">{selectedClaim.causeTitle}</p>
                 </div>
-                <div>
+                {/* <div>
                   <p className="text-sm font-medium text-gray-500">Purpose</p>
                   <p className="text-lg">{selectedClaim.purpose}</p>
-                </div>
+                </div> */}
                 <div>
                   <p className="text-sm font-medium text-gray-500">Claim Date</p>
                   <p className="text-lg">{new Date(selectedClaim.createdAt).toLocaleString()}</p>

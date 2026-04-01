@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -12,10 +12,17 @@ import { getImageUrl, handleImageError } from '@/utils/imageUtils';
 import config from '@/config';
 import axios from 'axios';
 
-const ClaimerDashboard = () => {
+interface ClaimerDashboardProps {
+  isNested?: boolean;
+}
+
+const ClaimerDashboard = ({ isNested = false }: ClaimerDashboardProps) => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
+  
+  const defaultTab = searchParams.get('tab') || 'causes';
   const [userCauses, setUserCauses] = useState<Cause[]>([]);
   const [userClaims, setUserClaims] = useState<Claim[]>([]);
   const [userWaitlist, setUserWaitlist] = useState<WaitlistEntry[]>([]);
@@ -53,6 +60,11 @@ const ClaimerDashboard = () => {
         }
       } catch (err: any) {
         console.error('Error fetching data:', err);
+        if (err.response?.status === 401) {
+          const currentPath = window.location.pathname + window.location.search;
+          navigate(`/login?redirect=${encodeURIComponent(currentPath)}`);
+          return;
+        }
         setError(err.response?.data?.message || 'Failed to load dashboard data');
       } finally {
         setLoading(false);
@@ -60,7 +72,7 @@ const ClaimerDashboard = () => {
     };
 
     fetchData();
-  }, [user?.email]);
+  }, [user?.email, config.apiUrl]); // Added config.apiUrl to dependencies for completeness
 
   // Handle leaving waitlist
   const handleLeaveWaitlist = async (waitlistId: string) => {
@@ -102,40 +114,49 @@ const ClaimerDashboard = () => {
 
   // Loading state
   if (loading) {
+    const loadingContent = (
+      <div className="flex justify-center items-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading your dashboard...</span>
+      </div>
+    );
+
+    if (isNested) return loadingContent;
+
     return (
       <DashboardLayout 
-        title="Claimer Dashboard" 
+        title="User Dashboard" 
         subtitle={`Welcome back, ${user?.name}`}
       >
-        <div className="flex justify-center items-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-2">Loading your dashboard...</span>
-        </div>
+        {loadingContent}
       </DashboardLayout>
     );
   }
 
   // Error state
   if (error) {
+    const errorContent = (
+      <div className="text-center py-12">
+        <h3 className="text-xl font-semibold text-gray-700 mb-2">Error</h3>
+        <p className="text-gray-500 mb-6">{error}</p>
+        <Button onClick={() => window.location.reload()}>Try Again</Button>
+      </div>
+    );
+
+    if (isNested) return errorContent;
+
     return (
       <DashboardLayout 
-        title="Claimer Dashboard" 
+        title="User Dashboard" 
         subtitle={`Welcome back, ${user?.name}`}
       >
-        <div className="text-center py-12">
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">Error</h3>
-          <p className="text-gray-500 mb-6">{error}</p>
-          <Button onClick={() => window.location.reload()}>Try Again</Button>
-        </div>
+        {errorContent}
       </DashboardLayout>
     );
   }
 
-  return (
-    <DashboardLayout 
-      title="Claimer Dashboard" 
-      subtitle={`Welcome back, ${user?.name}`}
-    >
+  const mainContent = (
+    <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card>
           <CardHeader className="pb-2">
@@ -155,7 +176,7 @@ const ClaimerDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">${totalRaised.toLocaleString()}</div>
+            <div className="text-3xl font-bold">₹{totalRaised.toLocaleString()}</div>
           </CardContent>
         </Card>
         
@@ -171,7 +192,7 @@ const ClaimerDashboard = () => {
         </Card>
       </div>
       
-      <Tabs defaultValue="causes">
+      <Tabs defaultValue={defaultTab}>
         <TabsList className="mb-6">
           <TabsTrigger value="causes">My Causes</TabsTrigger>
           <TabsTrigger value="totes">Claimed Totes</TabsTrigger>
@@ -187,10 +208,10 @@ const ClaimerDashboard = () => {
                     <div className="flex flex-col md:flex-row gap-6">
                       <div className="md:w-1/4">
                         <img 
-                          src={getImageUrl(cause.imageUrl)} 
-                          alt={cause.title} 
-                          className="w-full h-32 object-cover rounded-md"
-                          onError={(e) => handleImageError(e)}
+                           src={getImageUrl(cause.imageUrl)} 
+                           alt={cause.title} 
+                           className="w-full h-32 object-cover rounded-md"
+                           onError={(e) => handleImageError(e)}
                         />
                       </div>
                       <div className="md:w-3/4">
@@ -212,15 +233,15 @@ const ClaimerDashboard = () => {
                           <div className="w-full bg-gray-200 rounded-full h-2.5">
                             <div 
                               className="bg-primary-600 h-2.5 rounded-full" 
-                              style={{ width: `${Math.min(((cause.currentAmount || 0) / cause.targetAmount) * 100, 100)}%` }}
+                               style={{ width: `${Math.min(((cause.currentAmount || 0) / cause.targetAmount) * 100, 100)}%` }}
                             ></div>
                           </div>
                           <div className="flex justify-between mt-2">
                             <span className="text-sm text-gray-500">
-                              ${(cause.currentAmount || 0).toLocaleString()} raised
+                              ₹{(cause.currentAmount || 0).toLocaleString()} raised
                             </span>
                             <span className="text-sm text-gray-500">
-                              ${cause.targetAmount.toLocaleString()} goal
+                               ₹{cause.targetAmount.toLocaleString()} goal
                             </span>
                           </div>
                         </div>
@@ -243,21 +264,21 @@ const ClaimerDashboard = () => {
                 </Card>
               ))
             ) : (
-              <div className="text-center py-12">
-                <h3 className="text-xl font-semibold text-gray-700 mb-2">No causes created yet</h3>
-                <p className="text-gray-500 mb-6">Start making an impact by creating your first cause.</p>
-                <Button onClick={() => navigate('/create-cause')}>
-                  Create New Cause
-                </Button>
-              </div>
-            )}
+              <div className="text-center py-24 bg-white rounded-2xl border border-dashed border-gray-200 shadow-sm">
             
-            {userCauses.length > 0 && (
-              <div className="text-center pt-6">
-                <Button onClick={() => navigate('/create-cause')}>
-                  Create New Cause
-                </Button>
-              </div>
+            <h3 className="text-3xl font-bold font-serif text-gray-900 mb-4">Create Your Own Cause</h3>
+            <p className="text-gray-500 max-w-lg mx-auto mb-10 text-lg leading-relaxed">
+              Coming soon! You'll soon have the power to create your own meaningful causes, set impact targets, 
+              and connect with verified sponsors to bring your vision of change to life! 
+            </p>
+            <div className="inline-flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-full font-bold text-sm tracking-wide uppercase">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+              </span>
+              Under Development
+            </div>
+          </div>
             )}
           </div>
         </TabsContent>
@@ -289,10 +310,6 @@ const ClaimerDashboard = () => {
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <p className="text-sm text-gray-500">Purpose</p>
-                        <p className="font-medium">{claim.purpose}</p>
-                      </div>
-                      <div>
                         <p className="text-sm text-gray-500">Address</p>
                         <p className="font-medium">{claim.address}, {claim.city}, {claim.state} {claim.zipCode}</p>
                       </div>
@@ -314,7 +331,10 @@ const ClaimerDashboard = () => {
                     <Button 
                       variant="outline" 
                       className="w-full"
-                      onClick={() => navigate(`/cause/${claim.causeId}`)}
+                      onClick={() => {
+                        const causeId = typeof claim.causeId === 'string' ? claim.causeId : (claim.causeId as any)?._id;
+                        if (causeId) navigate(`/cause/${causeId}`);
+                      }}
                     >
                       View Cause
                     </Button>
@@ -345,8 +365,8 @@ const ClaimerDashboard = () => {
                           <img 
                             src={getImageUrl(entry.cause.imageUrl)} 
                             alt={entry.cause.title} 
-                            className="w-full h-32 object-cover rounded-md"
-                            onError={(e) => handleImageError(e)}
+                             className="w-full h-32 object-cover rounded-md"
+                             onError={(e) => handleImageError(e)}
                           />
                         </div>
                       )}
@@ -369,32 +389,43 @@ const ClaimerDashboard = () => {
                             </div>
                             <div className="flex justify-between mt-2">
                               <span className="text-sm text-gray-500">
-                                ${(entry.cause.currentAmount || 0).toLocaleString()} raised
+                                ₹{(entry.cause.currentAmount || 0).toLocaleString()} raised
                               </span>
                               <span className="text-sm text-gray-500">
-                                ${entry.cause.targetAmount.toLocaleString()} goal
+                                ₹{entry.cause.targetAmount.toLocaleString()} goal
                               </span>
                             </div>
                           </div>
                         )}
                         
-                        <div className="flex flex-wrap gap-4 items-center">
-                          <div>
-                            <p className="text-sm text-gray-500">Joined</p>
-                            <p className="font-semibold">{new Date(entry.createdAt).toLocaleDateString()}</p>
+                          <div className="flex flex-wrap gap-4 items-center">
+                            <div>
+                              <p className="text-sm text-gray-500">Joined</p>
+                              <p className="font-semibold">{new Date(entry.createdAt).toLocaleDateString()}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-500">Status</p>
+                              <p className="font-semibold capitalize">{entry.status}</p>
+                            </div>
+                            <div className="flex-grow"></div>
+                            <div className="flex gap-3">
+                              <Button 
+                                variant="outline"
+                                onClick={() => {
+                                  const causeId = entry.cause?._id || entry.causeId;
+                                  if (causeId) navigate(`/cause/${causeId}`);
+                                }}
+                              >
+                                View Cause
+                              </Button>
+                              <Button 
+                                variant="destructive" 
+                                onClick={() => handleLeaveWaitlist(entry._id)}
+                              >
+                                Leave
+                              </Button>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Status</p>
-                            <p className="font-semibold capitalize">{entry.status}</p>
-                          </div>
-                          <div className="flex-grow"></div>
-                          <Button 
-                            variant="outline" 
-                            onClick={() => handleLeaveWaitlist(entry._id)}
-                          >
-                            Leave Waitlist
-                          </Button>
-                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -412,6 +443,17 @@ const ClaimerDashboard = () => {
           )}
         </TabsContent>
       </Tabs>
+    </>
+  );
+
+  if (isNested) return <div className="p-4 md:p-8">{mainContent}</div>;
+
+  return (
+    <DashboardLayout 
+      title="User Dashboard" 
+      subtitle={`Welcome back, ${user?.name}`}
+    >
+      {mainContent}
     </DashboardLayout>
   );
 };
@@ -439,12 +481,12 @@ interface Cause {
 
 interface Claim {
   _id: string;
-  causeId: string;
+  causeId: any; // Can be string or populated object
   causeTitle: string;
   fullName: string;
   email: string;
   phone: string;
-  purpose: string;
+  // purpose: string;
   address: string;
   city: string;
   state: string;
