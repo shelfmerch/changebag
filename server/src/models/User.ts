@@ -8,12 +8,14 @@ export enum UserRole {
 }
 
 export interface IUser extends Document {
-  email?: string;
+  email: string;
   passwordHash?: string;
+  googleId?: string;
   role: UserRole;
   name?: string;
   phone?: string;
-  googleId?: string;
+  emailVerified: boolean;
+  phoneVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,13 +23,14 @@ export interface IUser extends Document {
 const userSchema = new Schema<IUser>({
   email: {
     type: String,
+    required: true,
     unique: true,
-    sparse: true,
     trim: true,
     lowercase: true
   },
   passwordHash: {
     type: String,
+    required: false
   },
   googleId: {
     type: String,
@@ -45,9 +48,15 @@ const userSchema = new Schema<IUser>({
   },
   phone: {
     type: String,
-    unique: true,
-    sparse: true,
     trim: true
+  },
+  emailVerified: {
+    type: Boolean,
+    default: false
+  },
+  phoneVerified: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

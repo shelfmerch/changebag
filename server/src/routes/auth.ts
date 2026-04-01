@@ -3,12 +3,11 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import { OAuth2Client } from 'google-auth-library';
-
 import User, { UserRole } from '../models/User';
-import OTPVerification from '../models/OTPVerification';
 import { sendWelcomeEmail } from '../lib/email';
 import { createRouter } from '../utils/routerHelper';
 import { authGuard } from '../middleware/authGuard';
+import OTPVerification from '../models/OTPVerification';
 import { generateOTP, hashOTP, generateExpiryTime } from '../utils/otpUtils';
 import { sendVerificationEmail } from '../services/emailService';
 import { sendVerificationSMS } from '../services/smsService';
@@ -19,14 +18,33 @@ const router: Router = createRouter();
 const JWT_SECRET = process.env.JWT_SECRET as string;
 const TOKEN_EXPIRY = '1h';
 const REFRESH_TOKEN_EXPIRY = '7d';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '119905627719-f7slrnitrpphqv28t7lc6049schg3qm3.apps.googleusercontent.com';
+const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+// Helper to generate tokens and set cookie
+const generateAndSetTokens = (user: any, res: Response) => {
+  const token = jwt.sign(
+    { userId: user._id, email: user.email, role: user.role },
+    JWT_SECRET,
+    { expiresIn: TOKEN_EXPIRY }
+  );
 
-function isEmail(identifier: string) {
-  return identifier.includes('@');
-}
+  const refreshToken = jwt.sign(
+    { userId: user._id },
+    JWT_SECRET,
+    { expiresIn: REFRESH_TOKEN_EXPIRY }
+  );
 
-// Standardize phone number format
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  });
+
+  return token;
+};
+
+// Standardize phone number format (copy from otpController)
 const standardizePhoneNumber = (phone: string): string => {
   let cleaned = phone.replace(/[^\d+]/g, '');
   if (cleaned.startsWith('+')) cleaned = cleaned.substring(1);
@@ -38,355 +56,374 @@ const standardizePhoneNumber = (phone: string): string => {
   return `+91${cleaned}`;
 };
 
-// Request OTP endpoint
+// Request OTP
 router.post('/request-otp', async (req: Request, res: Response) => {
   try {
-    let { identifier } = req.body;
-    
-    if (!identifier) {
-      return res.status(400).json({ message: 'Email or phone number is required' });
-    }
+    const { identifier } = req.body;
+    if (!identifier) return res.status(400).json({ message: 'Email or mobile number is required' });
 
-    const method = isEmail(identifier) ? 'email' : 'sms';
-    if (method === 'sms') {
-      identifier = standardizePhoneNumber(identifier);
-    }
-    
-    // Check for recent OTP
-    const twoMinutesAgo = new Date();
-    twoMinutesAgo.setMinutes(twoMinutesAgo.getMinutes() - 2);
-    
-    const recentOTP = await OTPVerification.findOne({
-      [method === 'email' ? 'email' : 'phone']: identifier,
-      type: method,
-      expiresAt: { $gt: new Date() },
-      createdAt: { $gt: twoMinutesAgo }
-    });
-
-    if (recentOTP) {
-      return res.status(200).json({
-        message: 'OTP already sent recently. Please check your inbox/messages.',
-        method
-      });
-    }
-
+    const isEmail = identifier.includes('@');
     const otp = generateOTP();
     const hashedOTP = hashOTP(otp);
     const expiryTime = generateExpiryTime();
 
-    await OTPVerification.create({
-      [method === 'email' ? 'email' : 'phone']: identifier,
-      otp: hashedOTP,
-      expiresAt: expiryTime,
-      type: method,
-    });
-
-    console.log(`[AUTH ROUTE] Sending ${method} OTP to ${identifier}: ${otp}`);
-
-    if (method === 'email') {
-      try {
-        await sendVerificationEmail(identifier, otp);
-      } catch (err) {
-        console.error('Email OTP failed:', err);
-        return res.status(500).json({ message: 'Failed to deliver Email OTP. Check server logs.' });
-      }
+    if (isEmail) {
+      await OTPVerification.create({
+        email: identifier.toLowerCase(),
+        otp: hashedOTP,
+        expiresAt: expiryTime,
+        type: 'email',
+      });
+      await sendVerificationEmail(identifier, otp);
     } else {
-      const smsResult = await sendVerificationSMS(identifier, otp);
-      if (smsResult && smsResult.status === 'logged') {
-        console.warn('SMS delivery failed, falling back to console log.');
-      }
+      const formattedPhone = standardizePhoneNumber(identifier);
+      await OTPVerification.create({
+        phone: formattedPhone,
+        otp: hashedOTP,
+        expiresAt: expiryTime,
+        type: 'sms',
+      });
+      await sendVerificationSMS(formattedPhone, otp);
     }
 
-    res.status(200).json({ message: 'OTP sent successfully', method });
+    res.json({ success: true, message: `OTP sent to ${identifier}` });
   } catch (error) {
     console.error('Request OTP error:', error);
-    res.status(500).json({ message: 'Failed to send OTP' });
+    res.status(500).json({ message: 'Error sending OTP' });
   }
 });
 
-// Verify OTP endpoint
+// Verify OTP
 router.post('/verify-otp', async (req: Request, res: Response) => {
   try {
-    let { identifier, otp } = req.body;
-    
-    if (!identifier || !otp) {
-      return res.status(400).json({ message: 'Identifier and OTP are required' });
-    }
+    const { identifier, otp } = req.body;
+    if (!identifier || !otp) return res.status(400).json({ message: 'Identifier and OTP are required' });
 
-    const method = isEmail(identifier) ? 'email' : 'sms';
-    if (method === 'sms') {
-      identifier = standardizePhoneNumber(identifier);
-    }
+    const isEmail = identifier.includes('@');
     const hashedOTP = hashOTP(otp);
+    const query = isEmail ? { email: identifier.toLowerCase(), type: 'email' } : { phone: standardizePhoneNumber(identifier), type: 'sms' };
 
-    const records = await OTPVerification.find({
-      [method === 'email' ? 'email' : 'phone']: identifier,
-      type: method
-    }).sort({ createdAt: -1 });
+    const otpRecord = await OTPVerification.findOne({
+      ...query,
+      otp: hashedOTP,
+      expiresAt: { $gt: new Date() },
+      verified: false
+    });
 
-    if (!records.length) {
-      return res.status(400).json({ message: 'No verification code found' });
-    }
+    if (!otpRecord) return res.status(400).json({ message: 'Invalid or expired OTP' });
 
-    const record = records[0];
-
-    if (record.otp !== hashedOTP) {
-      return res.status(400).json({ message: 'Invalid verification code' });
-    }
-    if (record.expiresAt < new Date()) {
-      return res.status(400).json({ message: 'Code has expired' });
-    }
-
-    // Mark verified
-    record.verified = true;
-    await record.save();
+    otpRecord.verified = true;
+    await otpRecord.save();
 
     // Check if user exists
-    const query = method === 'email' ? { email: identifier } : { phone: identifier };
-    const user = await User.findOne(query);
+    const userQuery = isEmail ? { email: identifier.toLowerCase() } : { phone: standardizePhoneNumber(identifier) };
+    let user = await User.findOne(userQuery);
 
-    if (user) {
-      // User exists, log them in
-      const token = jwt.sign(
-        { userId: user._id, email: user.email, role: user.role },
-        JWT_SECRET,
-        { expiresIn: TOKEN_EXPIRY }
-      );
-      const refreshToken = jwt.sign(
-        { userId: user._id },
-        JWT_SECRET,
-        { expiresIn: REFRESH_TOKEN_EXPIRY }
-      );
-
-      res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 7 * 24 * 60 * 60 * 1000
-      });
-
-      return res.status(200).json({
-        message: 'Login successful',
-        isNewUser: false,
-        token,
-        user: {
-          id: user._id,
-          email: user.email,
-          role: user.role,
-          name: user.name,
-          phone: user.phone
-        }
-      });
-    } else {
-      // User is new, needs to provide name
-      return res.status(200).json({
-        message: 'OTP verified. Please provide your name to continue.',
-        isNewUser: true
-      });
+    if (!user) {
+      return res.json({ success: true, isNewUser: true, message: 'OTP verified. Please complete registration.' });
     }
 
-  } catch (error) {
-    console.error('Verify OTP error:', error);
-    res.status(500).json({ message: 'Failed to verify OTP' });
-  }
-});
-
-// Complete Registration endpoint
-router.post('/complete-registration', async (req: Request, res: Response) => {
-  try {
-    let { identifier, name } = req.body;
-    
-    if (!identifier || !name) {
-      return res.status(400).json({ message: 'Identifier and Name are required' });
+    // Update verification status for existing user
+    let updated = false;
+    if (isEmail && !user.emailVerified) {
+      user.emailVerified = true;
+      updated = true;
+    } else if (!isEmail && !user.phoneVerified) {
+      user.phoneVerified = true;
+      updated = true;
     }
+    if (updated) await user.save();
 
-    const method = isEmail(identifier) ? 'email' : 'sms';
-    if (method === 'sms') {
-      identifier = standardizePhoneNumber(identifier);
-    }
-
-    // Ensure OTP was verified recently
-    const recentVerifiedOTP = await OTPVerification.findOne({
-      [method === 'email' ? 'email' : 'phone']: identifier,
-      type: method,
-      verified: true
-    }).sort({ createdAt: -1 });
-
-    if (!recentVerifiedOTP) {
-      return res.status(400).json({ message: 'Please verify OTP first' });
-    }
-
-    const newUser = new User({
-      [method === 'email' ? 'email' : 'phone']: identifier,
-      name,
-      role: UserRole.USER
-    });
-
-    await newUser.save();
-
-    if (method === 'email') {
-      try {
-        await sendWelcomeEmail(identifier, name);
-      } catch (err) {
-        console.error('Welcome email failed:', err);
-      }
-    }
-
-    const token = jwt.sign(
-      { userId: newUser._id, email: newUser.email, role: newUser.role },
-      JWT_SECRET,
-      { expiresIn: TOKEN_EXPIRY }
-    );
-    const refreshToken = jwt.sign(
-      { userId: newUser._id },
-      JWT_SECRET,
-      { expiresIn: REFRESH_TOKEN_EXPIRY }
-    );
-
-    res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 7 * 24 * 60 * 60 * 1000
-    });
-
-    return res.status(201).json({
-      message: 'Registration successful',
-      token,
-      user: {
-        id: newUser._id,
-        email: newUser.email,
-        role: newUser.role,
-        name: newUser.name,
-        phone: newUser.phone
-      }
-    });
-
-  } catch (error) {
-    console.error('Complete registration error:', error);
-    res.status(500).json({ message: 'Failed to complete registration' });
-  }
-});
-
-// Google Authentication
-router.post('/google', async (req: Request, res: Response) => {
-  try {
-    const { credential } = req.body;
-    
-    if (!credential) {
-       return res.status(400).json({ message: 'Google credential missing' });
-    }
-
-    const ticket = await googleClient.verifyIdToken({
-      idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID
-    });
-
-    const payload = ticket.getPayload();
-    if (!payload) {
-      return res.status(400).json({ message: 'Invalid Google token payload' });
-    }
-
-    const { sub: googleId, email, name } = payload;
-
-    // Try finding by Google ID or Email
-    let user = await User.findOne({ 
-      $or: [
-        { googleId },
-        { email }
-      ]
-    });
-
-    if (user) {
-      // Update googleId if matched by email but googleId was empty
-      if (!user.googleId) {
-        user.googleId = googleId;
-        await user.save();
-      }
-    } else {
-      // Create new user automatically
-      user = new User({
-        email,
-        name,
-        googleId,
-        role: UserRole.USER
-      });
-      await user.save();
-    }
-
-    const token = jwt.sign(
-      { userId: user._id, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: TOKEN_EXPIRY }
-    );
-    const refreshToken = jwt.sign(
-      { userId: user._id },
-      JWT_SECRET,
-      { expiresIn: REFRESH_TOKEN_EXPIRY }
-    );
-
-    res.cookie('refreshToken', refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        maxAge: 7 * 24 * 60 * 60 * 1000
-    });
-
-    return res.status(200).json({
-      message: 'Google login successful',
+    const token = generateAndSetTokens(user, res);
+    res.json({
+      success: true,
       token,
       user: {
         id: user._id,
         email: user.email,
         role: user.role,
         name: user.name,
-        phone: user.phone
+        emailVerified: user.emailVerified,
+        phoneVerified: user.phoneVerified
       }
     });
-
-  } catch(error) {
-    console.error('Google auth error:', error);
-    res.status(500).json({ message: 'Failed to authenticate with Google' });
+  } catch (error) {
+    console.error('Verify OTP error:', error);
+    res.status(500).json({ message: 'Error verifying OTP' });
   }
 });
 
-/* =========================================================
-   NOTE: Kept legacy endpoints for backward compatibility
-========================================================= */
+// Complete Registration
+router.post('/complete-registration', async (req: Request, res: Response) => {
+  try {
+    const { identifier, name } = req.body;
+    if (!identifier || !name) return res.status(400).json({ message: 'Identifier and name are required' });
 
-// Legacy Register
-router.post('/register', async (req: Request, res: Response) => {
-  return res.status(400).json({ message: 'Registration has been moved to a new flow. Please use /request-otp and /complete-registration' });
+    const isEmail = identifier.includes('@');
+    const userQuery = isEmail ? { email: identifier.toLowerCase() } : { phone: standardizePhoneNumber(identifier) };
+    
+    let user = await User.findOne(userQuery);
+    if (user) return res.status(400).json({ message: 'User already exists' });
+
+    user = new User({
+      ...(isEmail ? { email: identifier.toLowerCase(), emailVerified: true } : { email: `${standardizePhoneNumber(identifier)}@changebag.local`, phone: standardizePhoneNumber(identifier), phoneVerified: true }),
+      name,
+      role: UserRole.USER
+    });
+
+    await user.save();
+    const token = generateAndSetTokens(user, res);
+
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        emailVerified: user.emailVerified,
+        phoneVerified: user.phoneVerified
+      }
+    });
+  } catch (error) {
+    console.error('Complete registration error:', error);
+    res.status(500).json({ message: 'Error completing registration' });
+  }
 });
 
-// Legacy Login
-router.post('/login', async (req: Request, res: Response) => {
-  return res.status(400).json({ message: 'Login has been moved to a new flow. Please use /request-otp and /verify-otp' });
+// Google login
+router.post('/google', async (req: Request, res: Response) => {
+  try {
+    const { credential } = req.body;
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: GOOGLE_CLIENT_ID,
+    });
+    
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) return res.status(400).json({ message: 'Invalid Google token' });
+
+    const { email, name, sub: googleId } = payload;
+    let user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      user = new User({
+        email: email.toLowerCase(),
+        name,
+        googleId,
+        role: UserRole.USER,
+        emailVerified: true
+      });
+      await user.save();
+    } else {
+      let updated = false;
+      if (!user.googleId) {
+        user.googleId = googleId;
+        updated = true;
+      }
+      if (!user.emailVerified) {
+        user.emailVerified = true;
+        updated = true;
+      }
+      if (updated) await user.save();
+    }
+
+    const token = generateAndSetTokens(user, res);
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        emailVerified: user.emailVerified,
+        phoneVerified: user.phoneVerified
+      }
+    });
+  } catch (error) {
+    console.error('Google login error:', error);
+    res.status(500).json({ message: 'Error during Google login' });
+  }
+});
+
+
+// Register a new user
+router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, password, name, phone, role } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({ message: 'User already exists' });
+    }
+
+    // Hash the password
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
+
+    // Create new user
+    const newUser = new User({
+      email,
+      passwordHash,
+      role: role || UserRole.USER, // Use the role from request body or default to USER
+      name,
+      phone
+    });
+
+    await newUser.save();
+
+    // Send welcome email
+    try {
+      await sendWelcomeEmail(email, name);
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError);
+      // Continue with registration even if email fails
+    }
+
+    // Generate token
+    const token = jwt.sign(
+      { userId: newUser._id, email: newUser.email, role: newUser.role },
+      JWT_SECRET,
+      { expiresIn: TOKEN_EXPIRY }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: newUser._id },
+      JWT_SECRET,
+      { expiresIn: REFRESH_TOKEN_EXPIRY }
+    );
+
+    // Set refresh token in HTTP-only cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.status(201).json({
+      message: 'User registered successfully',
+      token,
+      user: {
+        id: newUser._id,
+        email: newUser.email,
+        role: newUser.role,
+        name: newUser.name,
+        emailVerified: newUser.emailVerified,
+        phoneVerified: newUser.phoneVerified
+      }
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ message: 'Server error during registration' });
+  }
+});
+
+// Login user
+router.post('/login', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    // Find user
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    // Generate token
+    const token = jwt.sign(
+      { userId: user._id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: TOKEN_EXPIRY }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user._id },
+      JWT_SECRET,
+      { expiresIn: REFRESH_TOKEN_EXPIRY }
+    );
+
+    // Set refresh token in HTTP-only cookie
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    });
+
+    res.json({
+      message: 'Login successful',
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        emailVerified: user.emailVerified,
+        phoneVerified: user.phoneVerified
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Server error during login' });
+  }
 });
 
 // Refresh token
-router.post('/refresh', async (req: Request, res: Response) => {
+router.post('/refresh', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const refreshToken = req.cookies.refreshToken;
-    if (!refreshToken) return res.status(401).json({ message: 'Refresh token required' });
 
+    if (!refreshToken) {
+      return res.status(401).json({ message: 'Refresh token required' });
+    }
+
+    // Verify refresh token
     const decoded = jwt.verify(refreshToken, JWT_SECRET) as { userId: string };
-    const user = await User.findById(decoded.userId);
-    
-    if (!user) return res.status(401).json({ message: 'User not found' });
 
+    // Find user
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    // Generate new access token
     const newToken = jwt.sign(
       { userId: user._id, email: user.email, role: user.role },
       JWT_SECRET,
       { expiresIn: TOKEN_EXPIRY }
     );
 
-    res.json({ message: 'Token refreshed successfully', token: newToken });
+    res.json({
+      message: 'Token refreshed successfully',
+      token: newToken
+    });
   } catch (error) {
     console.error('Token refresh error:', error);
-    res.status(401).json({ message: 'Invalid or expired payload' });
+    res.status(401).json({ message: 'Invalid or expired refresh token' });
   }
 });
 
 // Logout user
-router.post('/logout', (req: Request, res: Response) => {
+router.post('/logout', (req: Request, res: Response, next: NextFunction) => {
+  // Clear the refresh token cookie
   res.clearCookie('refreshToken');
   res.json({ message: 'Logged out successfully' });
 });
@@ -395,7 +432,9 @@ router.post('/logout', (req: Request, res: Response) => {
 router.get('/me', authGuard, async (req: Request, res: Response) => {
   try {
     const user = req.user;
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
     res.json({
       user: {
@@ -403,12 +442,14 @@ router.get('/me', authGuard, async (req: Request, res: Response) => {
         email: user.email,
         role: user.role,
         name: user.name,
-        phone: user.phone
+        phone: user.phone,
+        emailVerified: user.emailVerified,
+        phoneVerified: user.phoneVerified
       }
     });
   } catch (error) {
     console.error('Get me error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ message: 'Server error fetching user profile' });
   }
 });
 

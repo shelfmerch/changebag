@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/AuthContext';
 import { Progress } from '@/components/ui/progress';
 import { toast } from '@/components/ui/use-toast';
 import CauseSelectionStep from './wizard/CauseSelectionStep';
@@ -24,6 +25,7 @@ const OnboardingWizard = ({
   isWidget = false,
   onStepChange
 }: OnboardingWizardProps) => {
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [causeData, setCauseData] = useState<any>(null);
   const [claimedTotes, setClaimedTotes] = useState(0);
@@ -170,6 +172,18 @@ const OnboardingWizard = ({
       fetchCauseData(initialCauseId);
     }
   }, [initialCauseId]);
+
+  // Auto-fill from user profile
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        contactName: user.name || prev.contactName,
+        email: user.email || prev.email,
+        phone: user.phone || prev.phone,
+      }));
+    }
+  }, [user]);
 
   /**
    * Calculate total totes based on distribution type and settings
