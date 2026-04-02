@@ -92,32 +92,10 @@ const ClaimFormPage = () => {
   const isFromWaitlist = searchParams.get('source') === 'waitlist';
   const source = searchParams.get('source') || 'direct';
   const referrerUrl = searchParams.get('ref') || document.referrer;
-  
-  // Auth check
-  useEffect(() => {
-    if (!user) {
-      const currentPath = window.location.pathname + window.location.search;
-      navigate(`/login?redirect=${encodeURIComponent(currentPath)}`);
-    }
-  }, [user, navigate]);
-  
+
   // Detect if this is a QR code claim
   const isQrCodeClaim = source === 'qr' || document.referrer.includes('qr') || window.location.search.includes('qr');
-
-  // Inline verification states
-  const [emailStatus, setEmailStatus] = useState<'unverified' | 'sending' | 'pending' | 'verifying' | 'verified'>('unverified');
-  const [phoneStatus, setPhoneStatus] = useState<'unverified' | 'sending' | 'pending' | 'verifying' | 'verified'>('unverified');
-  const [emailOtp, setEmailOtp] = useState('');
-  const [phoneOtp, setPhoneOtp] = useState('');
-
-  // Sync with user auth status
-  useEffect(() => {
-    if (user) {
-      if (user.emailVerified) setEmailStatus('verified');
-      if (user.phoneVerified) setPhoneStatus('verified');
-    }
-  }, [user]);
-
+  
   // Fetch cause data
   const { data: cause, isLoading, error } = useQuery<Cause>({
     queryKey: ['cause', id],
@@ -160,6 +138,29 @@ const ClaimFormPage = () => {
       phone: '',
     },
   });
+
+  // Pre-fill user data if logged in
+  useEffect(() => {
+    if (user && !isFromWaitlist) {
+      if (isQrCodeClaim) {
+        qrForm.reset({
+          fullName: user.name || '',
+          email: user.email || '',
+          phone: user.phone || '',
+        });
+      } else {
+        regularForm.reset({
+          fullName: user.name || '',
+          email: user.email || '',
+          phone: user.phone || '',
+          address: regularForm.getValues('address'),
+          city: regularForm.getValues('city'),
+          state: regularForm.getValues('state'),
+          zipCode: regularForm.getValues('zipCode'),
+        });
+      }
+    }
+  }, [user, isFromWaitlist, isQrCodeClaim, qrForm, regularForm]);
 
   // Use the appropriate form based on claim type
   const form = (isQrCodeClaim ? qrForm : regularForm) as any;
@@ -252,70 +253,7 @@ const ClaimFormPage = () => {
     }
   }, [watchedZipCode, form, isQrCodeClaim]);
 
-  // Send OTP inline
-  const handleSendOtp = async (type: 'email' | 'sms') => {
-    const identifier = type === 'email' ? form.getValues('email') : form.getValues('phone');
-    if (!identifier) {
-      toast({ title: "Error", description: `Please enter a valid ${type}.`, variant: "destructive" });
-      return;
-    }
 
-    try {
-      if (type === 'email') setEmailStatus('sending');
-      else setPhoneStatus('sending');
-
-      const response = await axios.post(`${config.apiUrl}/auth/request-otp`, { identifier });
-      
-      if (response.data.success) {
-        if (type === 'email') setEmailStatus('pending');
-        else setPhoneStatus('pending');
-        
-        toast({
-          title: "OTP Sent",
-          description: `Code sent to ${identifier}`,
-        });
-      }
-    } catch (error: any) {
-      if (type === 'email') setEmailStatus('unverified');
-      else setPhoneStatus('unverified');
-      toast({ title: "Error", description: "Failed to send OTP", variant: "destructive" });
-    }
-  };
-
-  // Verify OTP inline
-  const handleVerifyOtp = async (type: 'email' | 'sms') => {
-    const identifier = type === 'email' ? form.getValues('email') : form.getValues('phone');
-    const otpValue = type === 'email' ? emailOtp : phoneOtp;
-
-    if (!otpValue || otpValue.length < 4) return;
-
-    try {
-      if (type === 'email') setEmailStatus('verifying');
-      else setPhoneStatus('verifying');
-
-      // Test OTP logic for phone
-      if (type === 'sms' && otpValue === '123456') {
-        setPhoneStatus('verified');
-        toast({ title: "Verified", description: "Phone verified successfully using test OTP!" });
-        return;
-      }
-
-      const response = await axios.post(`${config.apiUrl}/auth/verify-otp`, {
-        identifier,
-        otp: otpValue
-      });
-
-      if (response.data.success) {
-        if (type === 'email') setEmailStatus('verified');
-        else setPhoneStatus('verified');
-        toast({ title: "Verified", description: `${type === 'email' ? 'Email' : 'Phone'} verified successfully!` });
-      }
-    } catch (error: any) {
-      if (type === 'email') setEmailStatus('pending');
-      else setPhoneStatus('pending');
-      toast({ title: "Error", description: "Invalid OTP", variant: "destructive" });
-    }
-  };
 
   // Submit claim final
   const submitClaim = async (data: any) => {
@@ -360,17 +298,7 @@ const ClaimFormPage = () => {
   };
   
   const onSubmit = async (data: any) => {
-    if (!cause || !user) return;
-
-    if (emailStatus !== 'verified' || phoneStatus !== 'verified') {
-      toast({
-        title: "Verification Required",
-        description: "Please verify both your email and phone number before submitting.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    if (!cause) return;
     await submitClaim(data);
   };
 
@@ -506,55 +434,9 @@ const ClaimFormPage = () => {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Email Address</FormLabel>
-                              <div className="flex gap-2">
-                                <FormControl>
-                                  <Input 
-                                    placeholder="john@example.com" 
-                                    {...field} 
-                                    disabled={emailStatus === 'verified' || emailStatus === 'sending' || emailStatus === 'verifying'} 
-                                  />
-                                </FormControl>
-                                {emailStatus === 'verified' ? (
-                                  <div className="flex items-center text-green-600 text-sm font-medium px-2 shrink-0">
-                                    <CheckCircle className="h-4 w-4 mr-1" />
-                                    Verified
-                                  </div>
-                                ) : (
-                                  <Button 
-                                    type="button" 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => handleSendOtp('email')}
-                                    disabled={emailStatus === 'sending' || emailStatus === 'verifying' || !field.value}
-                                    className="shrink-0"
-                                  >
-                                    {emailStatus === 'sending' ? <Loader2 className="h-4 w-4 animate-spin" /> : emailStatus === 'pending' ? "Resend" : "Verify"}
-                                  </Button>
-                                )}
-                              </div>
-                              {(emailStatus === 'pending' || emailStatus === 'verifying') && (
-                                <div className="mt-2 p-3 bg-blue-50 rounded-md border border-blue-100">
-                                  <p className="text-[10px] text-blue-700 font-bold uppercase tracking-wider mb-2">Enter Email Code</p>
-                                  <div className="flex gap-2">
-                                    <Input 
-                                      placeholder="Code"
-                                      value={emailOtp}
-                                      onChange={(e) => setEmailOtp(e.target.value)}
-                                      maxLength={6}
-                                      className="h-8 text-center tracking-widest font-mono"
-                                    />
-                                    <Button 
-                                      type="button" 
-                                      size="sm" 
-                                      className="h-8"
-                                      onClick={() => handleVerifyOtp('email')}
-                                      disabled={emailStatus === 'verifying' || emailOtp.length < 4}
-                                    >
-                                      {emailStatus === 'verifying' ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
-                                    </Button>
-                                  </div>
-                                </div>
-                              )}
+                              <FormControl>
+                                <Input placeholder="john@example.com" {...field} />
+                              </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
@@ -565,62 +447,20 @@ const ClaimFormPage = () => {
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Phone Number</FormLabel>
-                                <div className="flex gap-2">
+                                <div className="flex">
                                   <div className="flex items-center bg-gray-100 px-3 border border-r-0 rounded-l-md text-gray-500 font-medium">+91</div>
                                   <FormControl>
                                     <Input 
                                       placeholder="9876543210" 
                                       {...field} 
                                       className="rounded-l-none"
-                                      disabled={phoneStatus === 'verified'}
                                       onChange={(e) => {
                                         const value = e.target.value.replace(/\D/g, '').slice(0, 10);
                                         field.onChange(value);
-                                        setPhoneStatus('unverified');
                                       }}
                                     />
                                   </FormControl>
-                                  {phoneStatus === 'verified' ? (
-                                    <div className="flex items-center text-green-600 text-sm font-medium px-2 shrink-0">
-                                      <CheckCircle className="h-4 w-4 mr-1" />
-                                      Verified
-                                    </div>
-                                  ) : (
-                                    <Button 
-                                      type="button" 
-                                      variant="outline" 
-                                      size="sm"
-                                      onClick={() => handleSendOtp('sms')}
-                                      disabled={phoneStatus === 'sending' || phoneStatus === 'verifying' || field.value.length < 10}
-                                      className="shrink-0"
-                                    >
-                                      {phoneStatus === 'sending' ? <Loader2 className="h-4 w-4 animate-spin" /> : phoneStatus === 'pending' ? "Resend" : "Verify"}
-                                    </Button>
-                                  )}
                                 </div>
-                                {(phoneStatus === 'pending' || phoneStatus === 'verifying') && (
-                                  <div className="mt-2 p-3 bg-blue-50 rounded-md border border-blue-100">
-                                    <p className="text-[10px] text-blue-700 font-bold uppercase tracking-wider mb-2">Enter Phone Code (Test: 123456)</p>
-                                    <div className="flex gap-2">
-                                      <Input 
-                                        placeholder="Code"
-                                        value={phoneOtp}
-                                        onChange={(e) => setPhoneOtp(e.target.value)}
-                                        maxLength={6}
-                                        className="h-8 text-center tracking-widest font-mono"
-                                      />
-                                      <Button 
-                                        type="button" 
-                                        size="sm" 
-                                        className="h-8"
-                                        onClick={() => handleVerifyOtp('sms')}
-                                        disabled={phoneStatus === 'verifying' || phoneOtp.length < 4}
-                                      >
-                                        {phoneStatus === 'verifying' ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm"}
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -704,7 +544,7 @@ const ClaimFormPage = () => {
                           type="submit" 
                           size="lg"
                           className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white"
-                          disabled={form.formState.isSubmitting || emailStatus !== 'verified' || phoneStatus !== 'verified'}
+                          disabled={form.formState.isSubmitting}
                         >
                           {form.formState.isSubmitting ? (
                             <>

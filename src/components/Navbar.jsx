@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import styles from './Navbar.module.css'
+import config from '@/config'
+import axios from 'axios'
 
 const LogoIcon = () => (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -25,6 +27,21 @@ export default function Navbar() {
   const { pathname } = useLocation();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [hasSponsorship, setHasSponsorship] = useState(false);
+
+  useEffect(() => {
+    const checkSponsorship = async () => {
+      if (user) {
+        try {
+          const response = await axios.get(`${config.apiUrl}/sponsorships/user`);
+          setHasSponsorship(response.data && response.data.length > 0);
+        } catch (error) {
+          setHasSponsorship(false);
+        }
+      }
+    };
+    checkSponsorship();
+  }, [user]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
@@ -111,11 +128,16 @@ export default function Navbar() {
                   <p className="text-xs text-gray-500 capitalize font-medium">{user.role}</p>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate('/dashboard')} className="cursor-pointer py-3 text-sm font-medium">
-                  Dashboard
+                <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer py-3 text-sm font-medium">
+                  Profile
                 </DropdownMenuItem>
+                {(hasSponsorship || user.role === 'admin') && (
+                  <DropdownMenuItem onClick={() => navigate(user.role === 'admin' ? '/dashboard/admin' : '/dashboard')} className="cursor-pointer py-3 text-sm font-medium">
+                    Dashboard
+                  </DropdownMenuItem>
+                )}
                 {user.role === 'admin' && (
-                  <DropdownMenuItem onClick={() => navigate('/admin/causes')} className="cursor-pointer py-3 text-sm font-medium">
+                  <DropdownMenuItem onClick={() => navigate('/admin/causes')} className="cursor-pointer py-3 text-sm font-medium border-t border-gray-100">
                     Admin Panel
                   </DropdownMenuItem>
                 )}

@@ -12,11 +12,7 @@ import { getImageUrl, handleImageError } from '@/utils/imageUtils';
 import config from '@/config';
 import axios from 'axios';
 
-interface ClaimerDashboardProps {
-  isNested?: boolean;
-}
-
-const ClaimerDashboard = ({ isNested = false }: ClaimerDashboardProps) => {
+const ClaimerDashboard = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
@@ -114,49 +110,40 @@ const ClaimerDashboard = ({ isNested = false }: ClaimerDashboardProps) => {
 
   // Loading state
   if (loading) {
-    const loadingContent = (
-      <div className="flex justify-center items-center py-20">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="ml-2">Loading your dashboard...</span>
-      </div>
-    );
-
-    if (isNested) return loadingContent;
-
     return (
       <DashboardLayout 
-        title="User Dashboard" 
+        title="Claimer Dashboard" 
         subtitle={`Welcome back, ${user?.name}`}
       >
-        {loadingContent}
+        <div className="flex justify-center items-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2">Loading your dashboard...</span>
+        </div>
       </DashboardLayout>
     );
   }
 
   // Error state
   if (error) {
-    const errorContent = (
-      <div className="text-center py-12">
-        <h3 className="text-xl font-semibold text-gray-700 mb-2">Error</h3>
-        <p className="text-gray-500 mb-6">{error}</p>
-        <Button onClick={() => window.location.reload()}>Try Again</Button>
-      </div>
-    );
-
-    if (isNested) return errorContent;
-
     return (
       <DashboardLayout 
-        title="User Dashboard" 
+        title="Claimer Dashboard" 
         subtitle={`Welcome back, ${user?.name}`}
       >
-        {errorContent}
+        <div className="text-center py-12">
+          <h3 className="text-xl font-semibold text-gray-700 mb-2">Error</h3>
+          <p className="text-gray-500 mb-6">{error}</p>
+          <Button onClick={() => window.location.reload()}>Try Again</Button>
+        </div>
       </DashboardLayout>
     );
   }
 
-  const mainContent = (
-    <>
+  return (
+    <DashboardLayout 
+      title="Claimer Dashboard" 
+      subtitle={`Welcome back, ${user?.name}`}
+    >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card>
           <CardHeader className="pb-2">
@@ -208,10 +195,10 @@ const ClaimerDashboard = ({ isNested = false }: ClaimerDashboardProps) => {
                     <div className="flex flex-col md:flex-row gap-6">
                       <div className="md:w-1/4">
                         <img 
-                           src={getImageUrl(cause.imageUrl)} 
-                           alt={cause.title} 
-                           className="w-full h-32 object-cover rounded-md"
-                           onError={(e) => handleImageError(e)}
+                          src={getImageUrl(cause.imageUrl)} 
+                          alt={cause.title} 
+                          className="w-full h-32 object-cover rounded-md"
+                          onError={(e) => handleImageError(e)}
                         />
                       </div>
                       <div className="md:w-3/4">
@@ -233,7 +220,7 @@ const ClaimerDashboard = ({ isNested = false }: ClaimerDashboardProps) => {
                           <div className="w-full bg-gray-200 rounded-full h-2.5">
                             <div 
                               className="bg-primary-600 h-2.5 rounded-full" 
-                               style={{ width: `${Math.min(((cause.currentAmount || 0) / cause.targetAmount) * 100, 100)}%` }}
+                              style={{ width: `${Math.min(((cause.currentAmount || 0) / cause.targetAmount) * 100, 100)}%` }}
                             ></div>
                           </div>
                           <div className="flex justify-between mt-2">
@@ -241,7 +228,7 @@ const ClaimerDashboard = ({ isNested = false }: ClaimerDashboardProps) => {
                               ₹{(cause.currentAmount || 0).toLocaleString()} raised
                             </span>
                             <span className="text-sm text-gray-500">
-                               ₹{cause.targetAmount.toLocaleString()} goal
+                              ₹{cause.targetAmount.toLocaleString()} goal
                             </span>
                           </div>
                         </div>
@@ -264,22 +251,28 @@ const ClaimerDashboard = ({ isNested = false }: ClaimerDashboardProps) => {
                 </Card>
               ))
             ) : (
-              <div className="text-center py-24 bg-white rounded-2xl border border-dashed border-gray-200 shadow-sm">
-            
-            <h3 className="text-3xl font-bold font-serif text-gray-900 mb-4">Create Your Own Cause</h3>
-            <p className="text-gray-500 max-w-lg mx-auto mb-10 text-lg leading-relaxed">
-              Coming soon! You'll soon have the power to create your own meaningful causes, set impact targets, 
-              and connect with verified sponsors to bring your vision of change to life! 
-            </p>
-            <div className="inline-flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-full font-bold text-sm tracking-wide uppercase">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-              </span>
-              Under Development
-            </div>
-          </div>
+              <div className="text-center py-12">
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">My Own Cause</h3>
+                <p className="text-gray-500 mb-6 italic">Soon you can create your own cause. Coming soon!</p>
+                {/* 
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">No causes created yet</h3>
+                <p className="text-gray-500 mb-6">Start making an impact by creating your first cause.</p>
+                <Button onClick={() => navigate('/create-cause')}>
+                  Create New Cause
+                </Button> 
+                */}
+              </div>
             )}
+            
+            {/* 
+            {userCauses.length > 0 && (
+              <div className="text-center pt-6">
+                <Button onClick={() => navigate('/create-cause')}>
+                  Create New Cause
+                </Button>
+              </div>
+            )} 
+            */}
           </div>
         </TabsContent>
         
@@ -309,6 +302,10 @@ const ClaimerDashboard = ({ isNested = false }: ClaimerDashboardProps) => {
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* <div>
+                        <p className="text-sm text-gray-500">Purpose</p>
+                        <p className="font-medium">{claim.purpose}</p>
+                      </div> */}
                       <div>
                         <p className="text-sm text-gray-500">Address</p>
                         <p className="font-medium">{claim.address}, {claim.city}, {claim.state} {claim.zipCode}</p>
@@ -365,8 +362,8 @@ const ClaimerDashboard = ({ isNested = false }: ClaimerDashboardProps) => {
                           <img 
                             src={getImageUrl(entry.cause.imageUrl)} 
                             alt={entry.cause.title} 
-                             className="w-full h-32 object-cover rounded-md"
-                             onError={(e) => handleImageError(e)}
+                            className="w-full h-32 object-cover rounded-md"
+                            onError={(e) => handleImageError(e)}
                           />
                         </div>
                       )}
@@ -443,17 +440,6 @@ const ClaimerDashboard = ({ isNested = false }: ClaimerDashboardProps) => {
           )}
         </TabsContent>
       </Tabs>
-    </>
-  );
-
-  if (isNested) return <div className="p-4 md:p-8">{mainContent}</div>;
-
-  return (
-    <DashboardLayout 
-      title="User Dashboard" 
-      subtitle={`Welcome back, ${user?.name}`}
-    >
-      {mainContent}
     </DashboardLayout>
   );
 };

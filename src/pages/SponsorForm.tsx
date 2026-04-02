@@ -7,10 +7,21 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import SponsorFormContainer from '@/components/sponsor/SponsorFormContainer';
 
+import { useAuth } from '@/context/AuthContext';
+import { useEffect } from 'react';
+
 const SponsorFormPage = () => {
   const navigate = useNavigate();
+  const { user, isLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const causeId = searchParams.get('causeId');
+
+  useEffect(() => {
+    if (!user && !isLoading) {
+      const currentPath = window.location.pathname + window.location.search;
+      navigate(`/login?redirect=${encodeURIComponent(currentPath)}`);
+    }
+  }, [user, isLoading, navigate]);
   
   return (
     <Layout>

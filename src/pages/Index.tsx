@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import s from './Index.module.css';
 import { useNavigate } from 'react-router-dom';
+import Footer from '../components/Footer';
 
 // ─────────────────────────────────────────────────────────────────────
 // Types
@@ -934,40 +935,7 @@ const HomePage: FC = () => {
       </section>
 
       <ContactForm />
-
-      {/* ── FOOTER ── */}
-      <footer className={s.footer}>
-        <div className={s.container}>
-          <div className={s.footerGrid}>
-            <div>
-              <span className={s.footerLogo}>ChangeBag</span>
-              <p className={s.footerBrandP}>India's purpose-media platform. Sponsor branded tote bags. Drive real impressions. Create measurable ESG impact.</p>
-            </div>
-            <div className={s.footerCol}>
-              <h5>Platform</h5>
-              <ul>
-                {['For Brands', 'For NGOs', 'For Government', 'Case Studies'].map((l) => <li key={l}><a href="#">{l}</a></li>)}
-              </ul>
-            </div>
-            <div className={s.footerCol}>
-              <h5>Company</h5>
-              <ul>
-                {['About us', 'Impact report', 'NGO partners', 'Media kit', 'Careers'].map((l) => <li key={l}><a href="#">{l}</a></li>)}
-              </ul>
-            </div>
-            <div className={s.footerCol}>
-              <h5>Contact</h5>
-              <ul>
-                {['hello@changebag.org', 'WhatsApp', 'LinkedIn', 'Instagram', 'Privacy Policy'].map((l) => <li key={l}><a href="#">{l}</a></li>)}
-              </ul>
-            </div>
-          </div>
-          <div className={s.footerBottom}>
-            <p>© 2025 ChangeBag. All rights reserved.</p>
-            <p>Made with purpose in India 🇮🇳</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </>
   );
 };

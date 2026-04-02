@@ -19,6 +19,7 @@ import SponsorFormPage from "./pages/SponsorForm";
 import SponsorshipConfirmation from "./pages/SponsorshipConfirmation";
 import LoginPage from "./pages/Login";
 import CreateCausePage from "./pages/CreateCause";
+import ProfilePage from "./pages/Profile";
 
 // Public Pages
 import WhySponsorPage from "./pages/WhySponsor";
@@ -54,7 +55,6 @@ import WaitlistEmailPreviewPage from "./pages/claimer/WaitlistEmailPreview";
 // Dashboard Pages
 import SponsorDashboard from "./pages/dashboard/SponsorDashboard";
 import ClaimerDashboard from "./pages/dashboard/ClaimerDashboard";
-import UnifiedDashboard from "./pages/dashboard/UnifiedDashboard";
 import AdminDashboard from "./pages/dashboard/AdminDashboard";
 
 // Admin Pages
@@ -164,21 +164,15 @@ const App: React.FC = () => {
                 <Route path="/waitlist/confirmed" element={<WaitlistConfirmationPage />} />
                 <Route path="/claim/magic-link" element={<MagicLinkClaimPage />} />
                 <Route path="/demo/waitlist-email" element={<WaitlistEmailPreviewPage />} />
+                <Route path="/profile" element={
+                  <ProtectedRoute>
+                    <ProfilePage />
+                  </ProtectedRoute>
+                } />
 
-                {/* Dashboard Routes */}
                 <Route path="/dashboard" element={
-                  <ProtectedRoute allowedRoles={['claimer', 'sponsor', 'admin', 'user']}>
-                    <UnifiedDashboard />
-                  </ProtectedRoute>
-                } />
-                <Route path="/dashboard/sponsor" element={
-                  <ProtectedRoute allowedRoles={['claimer', 'sponsor', 'admin', 'user']}>
+                  <ProtectedRoute allowedRoles={['sponsor', 'admin']}>
                     <SponsorDashboard />
-                  </ProtectedRoute>
-                } />
-                <Route path="/dashboard/claimer" element={
-                  <ProtectedRoute allowedRoles={['claimer', 'sponsor', 'admin', 'user']}>
-                    <ClaimerDashboard />
                   </ProtectedRoute>
                 } />
                 <Route path="/dashboard/admin" element={
@@ -191,8 +185,8 @@ const App: React.FC = () => {
                 <Route path="/unauthorized" element={<Unauthorized />} />
 
                 {/* Redirect old visitor dashboard to appropriate dashboard */}
-                <Route path="/dashboard/visitor" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard/user" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard/visitor" element={<Navigate to="/profile" replace />} />
+                <Route path="/dashboard/user" element={<Navigate to="/profile" replace />} />
 
                 {/* Admin Routes */}
                 <Route path="/admin/causes" element={

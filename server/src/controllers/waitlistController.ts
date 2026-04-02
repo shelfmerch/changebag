@@ -70,6 +70,31 @@ export const joinWaitlist = async (req: Request, res: Response): Promise<void> =
       status: WaitlistStatus.WAITING
     });
 
+    // Send waitlist confirmation email
+    try {
+      const currentYear = new Date().getFullYear();
+      const subject = `Waitlist Confirmed: ${cause.title}`;
+      const htmlContent = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
+          <h2 style="color: #10b981; border-bottom: 2px solid #10b981; padding-bottom: 10px;">Waitlist Confirmed!</h2>
+          <p>Hi ${fullName},</p>
+          <p>You've successfully joined the waitlist for <strong>${cause.title}</strong> tote bags.</p>
+          <p>We'll notify you as soon as more totes become available for this cause. We prioritize users based on their position in the waitlist.</p>
+          <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 25px 0; border: 1px solid #e5e7eb; text-align: center;">
+            <p style="margin: 0; font-size: 14px; text-transform: uppercase; color: #6b7280; letter-spacing: 0.1em;">Your Current Position</p>
+            <p style="margin: 10px 0 0 0; font-size: 48px; font-weight: 800; color: #10b981;">#${position}</p>
+          </div>
+          <p>Thank you for your patience and for supporting sustainable alternatives!</p>
+          <p style="margin-top: 30px;">Best regards,<br><strong>The ChangeBag Team</strong></p>
+          <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+          <p style="font-size: 12px; color: #9ca3af; text-align: center;">&copy; ${currentYear} ChangeBag. Brand For Good.</p>
+        </div>
+      `;
+      await sendEmail(email, subject, htmlContent);
+    } catch (emailError) {
+      console.error('Error sending waitlist confirmation email:', emailError);
+    }
+
     res.status(201).json({
       message: 'Successfully joined waitlist',
       waitlistEntry,
