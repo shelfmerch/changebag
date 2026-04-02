@@ -31,12 +31,12 @@ const isProduction = import.meta.env.PROD ||
   window.location.hostname === 'www.changebag.io';
 
 // Base domain for API requests
-const apiDomain = isProduction ? 'https://api.changebag.org' : 'http://localhost:5000';
+const apiDomain = isProduction ? 'https://api.changebag.io' : 'http://localhost:5000';
 
 // Production URLs
-const PROD_API_URL = 'https://api.changebag.org';
-const PROD_UPLOADS_URL = 'https://api.changebag.org/uploads';
-const PROD_FRONTEND_URL = 'https://changebag.org';
+const PROD_API_URL = 'https://api.changebag.io';
+const PROD_UPLOADS_URL = 'https://api.changebag.io/uploads';
+const PROD_FRONTEND_URL = 'https://changebag.io';
 
 // Development URLs (from environment variables or defaults)
 const DEV_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
