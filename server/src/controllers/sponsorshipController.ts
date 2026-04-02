@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import Sponsorship, { SponsorshipStatus, DistributionType } from '../models/Sponsorship';
 import Cause from '../models/Cause';
 import mongoose from 'mongoose';
+import User, { UserRole } from '../models/User';
 
 export const createSponsorship = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -155,6 +156,17 @@ export const createSponsorship = async (req: Request, res: Response): Promise<vo
     
     await sponsorship.save();
     
+    // Update user role to SPONSOR if they are currently a regular USER or CLAIMER
+    if (req.user && (req.user.role === UserRole.USER || req.user.role === UserRole.CLAIMER)) {
+      try {
+        await User.findByIdAndUpdate(req.user._id, { role: UserRole.SPONSOR });
+        console.log(`User ${req.user._id} role upgraded to SPONSOR (from ${req.user.role}) following record creation.`);
+      } catch (roleUpdateError) {
+        console.error('Error updating user role to SPONSOR:', roleUpdateError);
+        // We don't fail the sponsorship creation if the role update fails, but we log it.
+      }
+    }
+    
     console.log('Sponsorship saved successfully with ID:', sponsorship._id);
     res.status(201).json(sponsorship);
   } catch (error) {
@@ -266,6 +278,22 @@ export const approveSponsorship = async (req: Request, res: Response): Promise<v
     sponsorship.approvedBy = req.user?._id;
     sponsorship.approvedAt = new Date();
     await sponsorship.save();
+    
+    // Update user role to SPONSOR if they are currently a regular USER or CLAIMER
+    if (sponsorship.sponsor) {
+      try {
+        await User.findOneAndUpdate(
+          { 
+            _id: sponsorship.sponsor, 
+            role: { $in: [UserRole.USER, UserRole.CLAIMER] } 
+          }, 
+          { role: UserRole.SPONSOR }
+        );
+        console.log(`User ${sponsorship.sponsor} role upgraded to SPONSOR following approval.`);
+      } catch (roleError) {
+        console.error('Error upgrading user role during approval:', roleError);
+      }
+    }
 
     // Send approval email to the sponsor
     try {

@@ -22,7 +22,8 @@ export const createClaim = async (req: Request, res: Response): Promise<void> =>
       source = ClaimSource.DIRECT,
       referrerUrl,
       qrCodeScanned = false,
-      status
+      status,
+      location // Added
     } = req.body;
 
     // Check if user has already claimed a tote for this cause
@@ -93,7 +94,8 @@ export const createClaim = async (req: Request, res: Response): Promise<void> =>
       qrCodeScanned,
       partnerId,
       partnerApiKey,
-      partnerBusinessName
+      partnerBusinessName,
+      location // Added
     });
 
     await claim.save();
@@ -392,7 +394,7 @@ export const getVerifiedClaimsForSponsoredCauses = async (req: Request, res: Res
     })
     .populate('causeId', 'title imageUrl category')
     .sort({ createdAt: -1 })
-    .select('causeId causeTitle fullName email phone address city state zipCode status emailVerified source referrerUrl qrCodeScanned createdAt updatedAt shippingDate deliveryDate');
+    .select('causeId causeTitle fullName email phone address city state zipCode location status emailVerified source referrerUrl qrCodeScanned createdAt updatedAt shippingDate deliveryDate');
     
     console.log('Found verified claims:', verifiedClaims.length);
     console.log('Verified claims data:', verifiedClaims);

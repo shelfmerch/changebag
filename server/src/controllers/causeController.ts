@@ -154,7 +154,7 @@ export const getCauseById = async (req: Request, res: Response) => {
     // Always include sponsorships for single cause view with toteQuantity
     causeQuery = causeQuery.populate({
       path: 'sponsorships',
-      select: '_id status amount toteQuantity createdAt'
+      select: '_id status amount toteQuantity selectedCities distributionLocations createdAt'
     });
     
     const cause = await causeQuery;

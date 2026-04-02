@@ -18,6 +18,7 @@ interface AuthContextType {
   completeRegistration: (identifier: string, name: string) => Promise<AuthResult>;
   googleLogin: (credential: string) => Promise<AuthResult>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -155,10 +156,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
   };
+  
+  const refreshUser = async () => {
+    try {
+      const storedToken = localStorage.getItem('token');
+      if (!storedToken) return;
+
+      const response = await fetch(getApiUrl('/auth/me'), {
+        method: 'GET',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${storedToken}`
+        },
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.user) {
+          setUser(data.user);
+          localStorage.setItem('user', JSON.stringify(data.user));
+        }
+      }
+    } catch (error) {
+      console.error('Refresh user failed:', error);
+    }
+  };
 
   return (
     <AuthContext.Provider value={{
-      user, token, isLoading, requestOtp, verifyOtp, completeRegistration, googleLogin, logout
+      user, token, isLoading, requestOtp, verifyOtp, completeRegistration, googleLogin, logout, refreshUser
     }}>
       {children}
     </AuthContext.Provider>

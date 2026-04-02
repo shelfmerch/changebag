@@ -131,7 +131,7 @@ export default function Navbar() {
                 <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer py-3 text-sm font-medium">
                   Profile
                 </DropdownMenuItem>
-                {(hasSponsorship || user.role === 'admin') && (
+                {(hasSponsorship || user.role === 'sponsor' || user.role === 'admin') && (
                   <DropdownMenuItem onClick={() => navigate(user.role === 'admin' ? '/dashboard/admin' : '/dashboard')} className="cursor-pointer py-3 text-sm font-medium">
                     Dashboard
                   </DropdownMenuItem>

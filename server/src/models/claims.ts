@@ -41,6 +41,7 @@ export interface IClaim extends Document {
   trackingNumber?: string;
   carrier?: string;
   estimatedDelivery?: Date;
+  location?: string; // Add this for location tracking
 
   partnerId?: mongoose.Types.ObjectId; // Add this
   partnerApiKey?: string; // Add this
@@ -53,6 +54,10 @@ const claimSchema = new Schema<IClaim>(
       type: Schema.Types.ObjectId,
       ref: 'Cause',
       required: true
+    },
+    location: {
+      type: String,
+      required: false
     },
     partnerId: {
       type: Schema.Types.ObjectId,
