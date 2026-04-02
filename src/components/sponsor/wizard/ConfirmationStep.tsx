@@ -93,33 +93,85 @@ const ConfirmationStep = ({ formData, causeData, onComplete }: ConfirmationStepP
     setPaymentStatus('processing');
 
     try {
-      // Create Razorpay order
-      const token = localStorage.getItem('token');
-      const orderResponse = await axios.post(
-        `${config.apiUrl}/payments/create-order`,
-        {
-          amount: Math.round(grandTotal * 100), // Convert to paise (smallest currency unit)
-          currency: 'INR',
-          email: formData.email,
-          organizationName: formData.organizationName,
-          contactName: formData.contactName,
-          phone: formData.phone,
-          causeTitle: selectedCause,
-          causeId: formData.selectedCause || causeData?._id, // <-- ADDED BY MYSELF
-          toteQuantity: formData.toteQuantity,
-          unitPrice: formData.unitPrice,
-          totalAmount: grandTotal,
-          shippingCost,
-          shippingCostPerTote,
-          qrCodeUrl: qrValue // Add QR code URL to the order data
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : 'Bearer mock_token_test',
-          },
+      const refreshAccessToken = async (): Promise<string | null> => {
+        try {
+          const refreshResponse = await fetch(`${config.apiUrl}/auth/refresh`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' }
+          });
+
+          if (!refreshResponse.ok) return null;
+          const refreshData = await refreshResponse.json();
+          if (refreshData?.token) {
+            localStorage.setItem('token', refreshData.token);
+            return refreshData.token as string;
+          }
+          return null;
+        } catch {
+          return null;
         }
-      );
+      };
+
+      // Create Razorpay order
+      let token = localStorage.getItem('token');
+      if (!token) {
+        token = await refreshAccessToken();
+      }
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      const createOrderPayload = {
+        amount: Math.round(grandTotal * 100), // Convert to paise (smallest currency unit)
+        currency: 'INR',
+        email: formData.email,
+        organizationName: formData.organizationName,
+        contactName: formData.contactName,
+        phone: formData.phone,
+        causeTitle: selectedCause,
+        causeId: formData.selectedCause || causeData?._id,
+        toteQuantity: formData.toteQuantity,
+        unitPrice: formData.unitPrice,
+        totalAmount: grandTotal,
+        shippingCost,
+        shippingCostPerTote,
+        qrCodeUrl: qrValue
+      };
+
+      let orderResponse;
+      try {
+        orderResponse = await axios.post(
+          `${config.apiUrl}/payments/create-order`,
+          createOrderPayload,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            withCredentials: true
+          }
+        );
+      } catch (err: any) {
+        if (err?.response?.status === 401) {
+          const refreshed = await refreshAccessToken();
+          if (!refreshed) throw err;
+          token = refreshed;
+          orderResponse = await axios.post(
+            `${config.apiUrl}/payments/create-order`,
+            createOrderPayload,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+              },
+              withCredentials: true
+            }
+          );
+        } else {
+          throw err;
+        }
+      }
 
       const { order } = orderResponse.data;
       const { id: orderId, amount, currency, key } = order;
@@ -135,19 +187,50 @@ const ConfirmationStep = ({ formData, causeData, onComplete }: ConfirmationStepP
         handler: async function (response: any) {
           try {
             // Verify payment on backend
-            const verifyResponse = await axios.post(
-              `${config.apiUrl}/payments/confirm-payment`,
-              {
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature
-              },
-              {
-                headers: {
-                  'Authorization': token ? `Bearer ${token}` : 'Bearer mock_token_test',
-                },
+            const confirmPayload = {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature
+            };
+
+            let confirmToken = token || localStorage.getItem('token');
+            if (!confirmToken) {
+              confirmToken = await refreshAccessToken();
+            }
+            if (!confirmToken) {
+              throw new Error('Authentication required');
+            }
+
+            try {
+              await axios.post(
+                `${config.apiUrl}/payments/confirm-payment`,
+                confirmPayload,
+                {
+                  headers: {
+                    'Authorization': `Bearer ${confirmToken}`,
+                  },
+                  withCredentials: true
+                }
+              );
+            } catch (err: any) {
+              if (err?.response?.status === 401) {
+                const refreshed = await refreshAccessToken();
+                if (!refreshed) throw err;
+                confirmToken = refreshed;
+                await axios.post(
+                  `${config.apiUrl}/payments/confirm-payment`,
+                  confirmPayload,
+                  {
+                    headers: {
+                      'Authorization': `Bearer ${confirmToken}`,
+                    },
+                    withCredentials: true
+                  }
+                );
+              } else {
+                throw err;
               }
-            );
+            }
 
             setPaymentStatus('completed');
             toast({
@@ -211,7 +294,7 @@ const ConfirmationStep = ({ formData, causeData, onComplete }: ConfirmationStepP
       setIsLoading(false);
       toast({
         title: "Payment Failed",
-        description: error.response?.data?.message || "Failed to initiate payment. Please try again.",
+        description: error.response?.data?.message || error.message || "Failed to initiate payment. Please try again.",
         variant: "destructive",
       });
     }

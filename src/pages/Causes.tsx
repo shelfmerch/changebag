@@ -190,8 +190,6 @@ const CausesPage = () => {
       navigate('/login', { state: { from: { pathname: `/causes` } } });
       return;
     }
-    setSelectedCause(cause);
-    setIsWidgetOpen(true);
 
     navigate(`/sponsor/new?causeId=${cause._id}`);
 
@@ -218,8 +216,13 @@ const CausesPage = () => {
     if (!isTargetAchieved(cause)) {
       return (
         <Button
-          onClick={() => handleSponsorAction(cause)}
-          className="w-full bg-green-600 hover:bg-green-700 text-white"
+          type="button"
+          onClick={(e) => {
+            // Prevent any parent click handlers / overlays from intercepting this action.
+            e.stopPropagation();
+            handleSponsorAction(cause);
+          }}
+          className="w-full bg-green-600 hover:bg-green-700 text-white relative z-10 pointer-events-auto"
         >
           Sponsor This Cause
         </Button>
