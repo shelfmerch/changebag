@@ -11,6 +11,7 @@ import OTPVerification from '../models/OTPVerification';
 import { generateOTP, hashOTP, generateExpiryTime } from '../utils/otpUtils';
 import { sendVerificationEmail } from '../services/emailService';
 import { sendVerificationSMS } from '../services/smsService';
+import { normalizeIndianMobile } from '../utils/phoneUtils';
 
 dotenv.config();
 
@@ -44,18 +45,6 @@ const generateAndSetTokens = (user: any, res: Response) => {
   return token;
 };
 
-// Standardize phone number format (copy from otpController)
-const standardizePhoneNumber = (phone: string): string => {
-  let cleaned = phone.replace(/[^\d+]/g, '');
-  if (cleaned.startsWith('+')) cleaned = cleaned.substring(1);
-  if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
-  if (cleaned.startsWith('91') && cleaned.length > 10) cleaned = cleaned.substring(2);
-  if (cleaned.length === 10) return `+91${cleaned}`;
-  if (cleaned.length === 12 && cleaned.startsWith('91')) return `+${cleaned}`;
-  if (cleaned.length === 13 && cleaned.startsWith('91')) return `+${cleaned}`;
-  return `+91${cleaned}`;
-};
-
 // Request OTP
 router.post('/request-otp', async (req: Request, res: Response) => {
   try {
@@ -78,14 +67,28 @@ router.post('/request-otp', async (req: Request, res: Response) => {
       });
       await sendVerificationEmail(identifier, otp);
     } else {
-      const formattedPhone = standardizePhoneNumber(identifier);
-      await OTPVerification.create({
+      const formattedPhone = normalizeIndianMobile(identifier);
+      if (!formattedPhone) {
+        return res.status(400).json({ message: 'Enter a valid 10-digit Indian mobile number.' });
+      }
+      const otpRecord = await OTPVerification.create({
         phone: formattedPhone,
         otp: hashedOTP,
         expiresAt: expiryTime,
         type: 'sms',
       });
-      await sendVerificationSMS(formattedPhone, otp);
+      try {
+        await sendVerificationSMS(formattedPhone, otp);
+      } catch (smsErr) {
+        await OTPVerification.deleteOne({ _id: otpRecord._id });
+        console.error('[auth] SMS send failed:', smsErr);
+        return res.status(503).json({
+          message:
+            smsErr instanceof Error
+              ? smsErr.message
+              : 'Could not send SMS. Please try again or contact support if this continues.',
+        });
+      }
     }
 
     res.json({ 
@@ -95,7 +98,8 @@ router.post('/request-otp', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Request OTP error:', error);
-    res.status(500).json({ message: 'Error sending OTP' });
+    const msg = error instanceof Error ? error.message : 'Error sending OTP';
+    res.status(500).json({ message: msg });
   }
 });
 
@@ -107,7 +111,13 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
 
     const isEmail = identifier.includes('@');
     const hashedOTP = hashOTP(otp);
-    const query = isEmail ? { email: identifier.toLowerCase(), type: 'email' } : { phone: standardizePhoneNumber(identifier), type: 'sms' };
+    const phoneNorm = !isEmail ? normalizeIndianMobile(identifier) : null;
+    if (!isEmail && !phoneNorm) {
+      return res.status(400).json({ message: 'Enter a valid 10-digit Indian mobile number.' });
+    }
+    const query = isEmail
+      ? { email: identifier.toLowerCase(), type: 'email' }
+      : { phone: phoneNorm!, type: 'sms' };
 
     const otpRecord = await OTPVerification.findOne({
       ...query,
@@ -122,7 +132,7 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
     await otpRecord.save();
 
     // Check if user exists
-    const userQuery = isEmail ? { email: identifier.toLowerCase() } : { phone: standardizePhoneNumber(identifier) };
+    const userQuery = isEmail ? { email: identifier.toLowerCase() } : { phone: phoneNorm! };
     let user = await User.findOne(userQuery);
 
     if (!user) {
@@ -166,13 +176,19 @@ router.post('/complete-registration', async (req: Request, res: Response) => {
     if (!identifier || !name) return res.status(400).json({ message: 'Identifier and name are required' });
 
     const isEmail = identifier.includes('@');
-    const userQuery = isEmail ? { email: identifier.toLowerCase() } : { phone: standardizePhoneNumber(identifier) };
-    
+    const regPhone = !isEmail ? normalizeIndianMobile(identifier) : null;
+    if (!isEmail && !regPhone) {
+      return res.status(400).json({ message: 'Enter a valid 10-digit Indian mobile number.' });
+    }
+    const userQuery = isEmail ? { email: identifier.toLowerCase() } : { phone: regPhone! };
+
     let user = await User.findOne(userQuery);
     if (user) return res.status(400).json({ message: 'User already exists' });
 
     user = new User({
-      ...(isEmail ? { email: identifier.toLowerCase(), emailVerified: true } : { email: `${standardizePhoneNumber(identifier)}@changebag.local`, phone: standardizePhoneNumber(identifier), phoneVerified: true }),
+      ...(isEmail
+        ? { email: identifier.toLowerCase(), emailVerified: true }
+        : { email: `${regPhone!}@changebag.local`, phone: regPhone!, phoneVerified: true }),
       name,
       role: UserRole.USER
     });
