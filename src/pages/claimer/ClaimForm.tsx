@@ -21,7 +21,14 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
 import config from '@/config';
-import { Loader2, QrCode, Phone, Mail, CheckCircle } from 'lucide-react';
+import { Loader2, QrCode, Phone, Mail, CheckCircle, MapPin } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 enum ClaimStatus {
   PENDING = 'pending',
@@ -54,6 +61,7 @@ const qrClaimFormSchema = z.object({
   email: z.string().email('Valid email is required'),
   phone: z.string()
     .regex(/^\d{10}$/, 'Phone number must be exactly 10 digits'),
+  location: z.string().min(1, 'Please select your current location'),
 });
 
 type RegularClaimFormValues = z.infer<typeof regularClaimFormSchema>;
@@ -71,11 +79,7 @@ interface Cause {
   sponsor?: Sponsor;
   // Add these fields to match the API response format
   sponsors?: Sponsor[];
-  sponsorships?: Array<{
-    _id: string;
-    status: string;
-    amount?: number;
-  }>;
+  sponsorships?: any[];
   totalTotes: number;
   claimedTotes: number;
   availableTotes: number;
@@ -136,6 +140,7 @@ const ClaimFormPage = () => {
       fullName: '',
       email: '',
       phone: '',
+      location: '',
     },
   });
 
@@ -147,6 +152,7 @@ const ClaimFormPage = () => {
           fullName: user.name || '',
           email: user.email || '',
           phone: user.phone || '',
+          location: '',
         });
       } else {
         regularForm.reset({
@@ -270,6 +276,7 @@ const ClaimFormPage = () => {
         zipCode: isQrCodeClaim ? '00000' : data.zipCode,
         state: isQrCodeClaim ? 'QR' : data.state,
         city: isQrCodeClaim ? 'QR Code Claim' : data.city,
+        location: data.location, // Location selection for QR claims
         emailVerified: true,
         phoneVerified: true,
         source: source,
@@ -465,6 +472,69 @@ const ClaimFormPage = () => {
                               </FormItem>
                             )}
                           />
+
+                        {isQrCodeClaim && (
+                          <FormField
+                            control={form.control}
+                            name="location"
+                            render={({ field }) => {
+                              // Extract unique cities and locations from cause sponsorships
+                              const locations = new Set<string>();
+                              
+                              if (cause?.sponsorships) {
+                                cause.sponsorships.forEach((s: any) => {
+                                  if (s.status === 'approved') {
+                                    if (s.selectedCities && Array.isArray(s.selectedCities)) {
+                                      s.selectedCities.forEach((city: string) => locations.add(city));
+                                    }
+                                    if (s.distributionLocations && Array.isArray(s.distributionLocations)) {
+                                      s.distributionLocations.forEach((loc: any) => {
+                                        const locName = loc.location || loc.name;
+                                        if (locName) locations.add(locName);
+                                      });
+                                    }
+                                  }
+                                });
+                              }
+                              
+                              const locationOptions = Array.from(locations).sort();
+                              
+                              return (
+                                <FormItem className="md:col-span-2">
+                                  <FormLabel className="flex items-center gap-2">
+                                    <MapPin className="h-4 w-4 text-green-600" />
+                                    Current Location
+                                  </FormLabel>
+                                  <Select 
+                                    onValueChange={field.onChange} 
+                                    defaultValue={field.value}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger className="bg-white">
+                                        <SelectValue placeholder="Select the city/area you are scanning from" />
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      {locationOptions.length > 0 ? (
+                                        locationOptions.map((loc) => (
+                                          <SelectItem key={loc} value={loc}>
+                                            {loc}
+                                          </SelectItem>
+                                        ))
+                                      ) : (
+                                        <SelectItem value="Other">Other Location</SelectItem>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                  <FormDescription>
+                                    Please select the location where you are currently scanning this QR code.
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              );
+                            }}
+                          />
+                        )}
                         </div>
 
                         {!isQrCodeClaim && (

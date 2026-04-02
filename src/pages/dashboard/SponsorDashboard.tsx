@@ -75,32 +75,6 @@ const SponsorDashboard = () => {
   const approvedSponsorships = sponsorships.filter(s => s.status === 'approved').length;
   const totalTotes = sponsorships.reduce((sum, sponsorship) => sum + (sponsorship.toteQuantity || 0), 0);
   
-  // Analytics data - you can enhance this with real claim data later
-  // const claimAnalytics = [
-  //   { date: '2025-03-20', claims: 12 },
-  //   { date: '2025-03-21', claims: 8 },
-  //   { date: '2025-03-22', claims: 15 },
-  //   { date: '2025-03-23', claims: 7 },
-  //   { date: '2025-03-24', claims: 10 },
-  //   { date: '2025-03-25', claims: 14 },
-  //   { date: '2025-03-26', claims: 12 },
-  // ];
-
-  // Mock data for impact reports
-  // const impactReports = [
-  //   {
-  //     id: '1',
-  //     title: 'Q1 2025 Impact Report - Clean Water Initiative',
-  //     causeTitle: 'Clean Water Initiative',
-  //     date: 'March 31, 2025',
-  //     highlights: [
-  //       '3 water filtration systems installed',
-  //       '1,200 people now have access to clean water',
-  //       '2 training sessions conducted with local technicians'
-  //     ]
-  //   }
-  // ];
-
 // Real data fetch from cause database
   interface Cause {
   _id: string;
@@ -217,13 +191,6 @@ interface Sponsorship {
   updatedAt: string;
 }
 
-  // Earned badges data
-  // const earnedBadges = [
-  //   { id: '1', title: 'First Sponsorship', description: 'Completed your first cause sponsorship', icon: '🏆' },
-  //   { id: '2', title: '50+ Totes Distributed', description: 'Your totes are making an impact', icon: '🌱' },
-  //   { id: '3', title: 'Clean Water Champion', description: 'Sponsored a water-related cause', icon: '💧' },
-  // ];
-  
   const handleDownloadCSV = (sponsorshipId: string) => {
     // In a real app, this would generate and download a CSV file
     toast({
@@ -232,14 +199,6 @@ interface Sponsorship {
     });
   };
   
-  const handleViewQRCode = (sponsorshipId: string) => {
-    // This would normally show a QR code modal
-    toast({
-      title: "QR Code Ready",
-      description: "You can now view or download your custom QR code."
-    });
-  };
-
   // Loading state
   if (loading) {
     return (
@@ -287,567 +246,176 @@ interface Sponsorship {
       title="Sponsor Dashboard" 
       subtitle={`Welcome back, ${user?.name}. Here's the impact you're creating today.`}
     >
-      {/* Enhanced Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card className="relative overflow-hidden border border-gray-100 shadow-sm bg-white hover:shadow-md transition-all duration-300">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-green-100 to-transparent rounded-full -translate-y-16 translate-x-16 opacity-30"></div>
-          <CardHeader className="pb-2 relative">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-bold text-gray-500 uppercase tracking-wider">
-                Total Contributed
-              </CardTitle>
-              <div className="p-2 bg-green-50 rounded-lg">
-                <DollarSign className="h-5 w-5 text-green-600" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="relative">
-            <div className="text-4xl font-bold font-serif text-gray-900 leading-none">₹{totalContributed.toLocaleString()}</div>
-            <p className="text-sm text-gray-500 mt-2 flex items-center gap-1.5 font-medium">
-              <TrendingUp className="h-4 w-4 text-green-500" />
-              <span>Across all causes</span>
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card className="relative overflow-hidden border border-gray-100 shadow-sm bg-white hover:shadow-md transition-all duration-300">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-100 to-transparent rounded-full -translate-y-16 translate-x-16 opacity-30"></div>
-          <CardHeader className="pb-2 relative">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-bold text-gray-500 uppercase tracking-wider">
-                Approved Sponsorships
-              </CardTitle>
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <CheckCircle className="h-5 w-5 text-blue-600" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="relative">
-            <div className="text-4xl font-bold font-serif text-gray-900 leading-none">{approvedSponsorships}</div>
-            <p className="text-sm text-gray-500 mt-2 font-medium">Successfully active</p>
-          </CardContent>
-        </Card>
-        
-        <Card className="relative overflow-hidden border border-gray-100 shadow-sm bg-white hover:shadow-md transition-all duration-300">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-indigo-100 to-transparent rounded-full -translate-y-16 translate-x-16 opacity-30"></div>
-          <CardHeader className="pb-2 relative">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-bold text-gray-500 uppercase tracking-wider">
-                Total Totes
-              </CardTitle>
-              <div className="p-2 bg-indigo-50 rounded-lg">
-                <Package className="h-5 w-5 text-indigo-600" />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="relative">
-            <div className="text-4xl font-bold font-serif text-gray-900 leading-none">{totalTotes}</div>
-            <p className="text-sm text-gray-500 mt-2 font-medium">Distributed to communities</p>
-          </CardContent>
-        </Card>
-      </div>
-      
-      {/* Enhanced Tabs */}
-      <Tabs defaultValue="sponsorships" className="w-full">
-        <TabsList className="flex w-full overflow-x-auto h-auto bg-transparent border-b border-gray-200 rounded-none mb-10 p-0 gap-8">
-          <TabsTrigger value="sponsorships" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-green-700 data-[state=active]:border-b-2 data-[state=active]:border-green-600 rounded-none transition-all duration-200 px-1 py-4">
-            <div className="flex items-center gap-2.5 font-bold text-sm">
-              <Building2 className="h-4.5 w-4.5" />
-              Sponsorships
-            </div>
-          </TabsTrigger>
-          <TabsTrigger value="my-causes" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-green-700 data-[state=active]:border-b-2 data-[state=active]:border-green-600 rounded-none transition-all duration-200 px-1 py-4">
-            <div className="flex items-center gap-2.5 font-bold text-sm">
-              <Award className="h-4.5 w-4.5" />
-              Active Causes
-            </div>
-          </TabsTrigger>
-          <TabsTrigger value="totes-claimed" className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:text-green-700 data-[state=active]:border-b-2 data-[state=active]:border-green-600 rounded-none transition-all duration-200 px-1 py-4">
-            <div className="flex items-center gap-2.5 font-bold text-sm">
-              <Package className="h-4.5 w-4.5" />
-              Community Impact
-            </div>
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="sponsorships">
-          <div className="space-y-6">
-            {sponsorships.length > 0 ? (
-              sponsorships.map((sponsorship) => (
-                <Card key={sponsorship._id} className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md overflow-hidden">
-                  <CardContent className="p-0">
-                    <div className="flex flex-col md:flex-row">
-                      <div className="md:w-1/3 relative overflow-hidden">
-                        <img 
-                          src={getImageUrl(sponsorship.cause?.imageUrl)} 
-                          alt={sponsorship.cause?.title || 'Cause image'} 
-                          className="w-full h-48 md:h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          onError={(e) => handleImageError(e)}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-                        <div className="absolute top-4 left-4">
-                          <Badge variant="outline" className={
-                            sponsorship.status === 'approved' ? 'bg-green-100 text-green-800 border-green-300 hover:bg-green-100' : 
-                            sponsorship.status === 'pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-100' :
-                            'bg-red-100 text-red-800 border-red-300 hover:bg-red-100'
-                          }>
-                            {sponsorship.status === 'approved' ? 'Approved' : 
-                             sponsorship.status === 'pending' ? 'Pending Approval' :
-                             'Rejected'}
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="md:w-2/3 p-6">
-                        <div className="flex justify-between items-start mb-4">
-                          <h3 className="text-xl font-semibold text-gray-800 group-hover:text-green-700 transition-colors">
-                            {sponsorship.cause?.title || 'Unknown Cause'}
-                          </h3>
-                        </div>
-                        <p className="text-gray-600 mb-6 line-clamp-2">{sponsorship.cause?.description || 'No description available'}</p>
-                        
-                        {/* Enhanced Stats Grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                          <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                            <DollarSign className="h-4 w-4 text-gray-500" />
-                          <div>
-                              <p className="text-xs text-gray-500">Contribution</p>
-                              <p className="font-semibold text-gray-800">₹{sponsorship.totalAmount?.toLocaleString()}</p>
-                            </div>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 font-serif">Your Sponsorships</h2>
+          <Button onClick={() => navigate('/causes')} className="bg-green-600 hover:bg-green-700 font-bold">
+            Browse More Causes
+          </Button>
+        </div>
 
-                          </div>
-                          <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                            <Package className="h-4 w-4 text-gray-500" />
-                          <div>
-                              <p className="text-xs text-gray-500">Totes</p>
-                              <p className="font-semibold text-gray-800">{sponsorship.toteQuantity}</p>
-                            </div>
-
-                          </div>
-                          <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                            <Building2 className="h-4 w-4 text-gray-500" />
-                          <div>
-                              <p className="text-xs text-gray-500">Organization</p>
-                              <p className="font-semibold text-gray-800">{sponsorship.organizationName}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                            <Calendar className="h-4 w-4 text-gray-500" />
-                          <div>
-                              <p className="text-xs text-gray-500">Date</p>
-                              <p className="font-semibold text-gray-800">{new Date(sponsorship.createdAt).toLocaleDateString()}</p>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex flex-wrap gap-3">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => sponsorship.cause?._id ? navigate(`/cause/${sponsorship.cause._id}`) : null}
-                            disabled={!sponsorship.cause?._id}
-                            className="border-green-200 text-green-700 hover:bg-green-50"
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Cause
-                          </Button>
-                          <Sheet>
-                            <SheetTrigger asChild>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className="gap-1 border-blue-200 text-blue-700 hover:bg-blue-50"
-                              >
-                                <QrCode className="h-4 w-4" />
-                                <span>QR Code</span>
-                              </Button>
-                            </SheetTrigger>
-                            <SheetContent>
-                              <SheetHeader>
-                                <SheetTitle>Your QR Code</SheetTitle>
-                                <SheetDescription>
-                                  This QR code is printed on your totes and links to your cause.
-                                </SheetDescription>
-                              </SheetHeader>
-                              <div className="flex flex-col items-center justify-center py-8">
-                                <div className="bg-white p-6 rounded-lg shadow-sm mb-4">
-                                  <img 
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}/claim/${sponsorship.cause?._id || 'unknown'}?source=qr&ref=sponsor-dashboard`)}`}
-                                    alt="QR Code"
-                                    className="w-48 h-48"
-                                  />
-                                </div>
-                                <p className="text-center text-sm text-gray-600 mb-4">
-                                  When scanned, this QR code will direct users to your sponsored cause page.
-                                </p>
-                                <Button variant="outline" size="sm" className="gap-1">
-                                  <Download className="h-4 w-4" />
-                                  <span>Download QR Code</span>
-                                </Button>
-                              </div>
-                            </SheetContent>
-                          </Sheet>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="gap-1 border-purple-200 text-purple-700 hover:bg-purple-50"
-                            onClick={() => handleDownloadCSV(sponsorship._id)}
-                          >
-                            <Download className="h-4 w-4" />
-                            <span>Download Claims CSV</span>
-                          </Button>
-                        </div>
-                      </div>
+        {sponsorships.length > 0 ? (
+          sponsorships.map((sponsorship) => (
+            <Card key={sponsorship._id} className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md overflow-hidden bg-white">
+              <CardContent className="p-0">
+                <div className="flex flex-col md:flex-row">
+                  <div className="md:w-1/3 relative overflow-hidden h-48 md:h-auto min-h-[220px]">
+                    <img 
+                      src={getImageUrl(sponsorship.cause?.imageUrl)} 
+                      alt={sponsorship.cause?.title || 'Cause image'} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => handleImageError(e)}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                    <div className="absolute top-4 left-4">
+                      <Badge className={
+                        sponsorship.status === 'approved' ? 'bg-green-500 text-white border-0 hover:bg-green-600' : 
+                        sponsorship.status === 'pending' ? 'bg-yellow-500 text-white border-0 hover:bg-yellow-600' :
+                        'bg-red-500 text-white border-0 hover:bg-red-600'
+                      }>
+                        {sponsorship.status === 'approved' ? 'Approved' : 
+                         sponsorship.status === 'pending' ? 'Pending Approval' :
+                         'Rejected'}
+                      </Badge>
                     </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <Card className="text-center py-16 border-dashed border-2 border-gray-200 bg-gray-50">
-                <div className="mx-auto w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
-                  <Building2 className="h-8 w-8 text-gray-400" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-2">No sponsorships yet</h3>
-                <p className="text-gray-500 mb-6 max-w-md mx-auto">Start making an impact by sponsoring your first cause and supporting meaningful initiatives.</p>
-                <Button onClick={() => navigate('/causes')} className="bg-green-600 hover:bg-green-700">
-                  Browse Causes
-                </Button>
-              </Card>
-            )}
-            
-            {sponsorships.length > 0 && (
-              <div className="text-center pt-6">
-                <Button onClick={() => navigate('/causes')} className="bg-green-600 hover:bg-green-700">
-                  Browse More Causes
-                </Button>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="my-causes">
-          <div className="text-center py-24 bg-white rounded-2xl border border-dashed border-gray-200 shadow-sm">
-            <div className="mx-auto w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mb-6">
-              <span className="text-4xl">✨</span>
-            </div>
-            <h3 className="text-3xl font-bold font-serif text-gray-900 mb-4">Create Your Own Cause</h3>
-            <p className="text-gray-500 max-w-lg mx-auto mb-10 text-lg leading-relaxed">
-              Coming soon! You'll soon have the power to create your own meaningful causes, set impact targets, 
-              and connect with verified sponsors to bring your vision of change to life across India.
-            </p>
-            <div className="inline-flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-full font-bold text-sm tracking-wide uppercase">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
-              </span>
-              Under Development
-            </div>
-          </div>
-
-          {/* Existing logic commented out for future use
-          <div className="space-y-6">
-            {sponsorCauses.length > 0 ? (
-              sponsorCauses.map((cause) => (
-                <Card key={cause._id} className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md overflow-hidden">
-                  <CardContent className="p-0">
-                    <div className="flex flex-col md:flex-row">
-                      <div className="md:w-1/3 relative overflow-hidden">
-                        <img 
-                          src={getImageUrl(cause.imageUrl)} 
-                          alt={cause.title} 
-                          className="w-full h-48 md:h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          onError={(e) => handleImageError(e)}
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
-                        <div className="absolute top-4 left-4 flex gap-2">
-                            <Badge variant="outline" className={
-                            cause.status === 'approved' && cause.isOnline ? 'bg-green-100 text-green-800 border-green-300 hover:bg-green-100' :
-                            cause.status === 'pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-100' :
-                            'bg-red-100 text-red-800 border-red-300 hover:bg-red-100'
-                            }>
-                              {cause.status === 'approved' && cause.isOnline ? 'Active' : 
-                               cause.status === 'pending' ? 'Pending Approval' :
-                               cause.status === 'rejected' ? 'Rejected' : 'Inactive'}
-                            </Badge>
-                            {cause.claimedTotes === cause.totalTotes && cause.totalTotes > 0 && (
-                            <Badge className="bg-green-100 text-green-800 border-green-300 hover:bg-green-100">
-                                All Totes Claimed
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      <div className="md:w-2/3 p-6">
-                        <div className="flex justify-between items-start mb-4">
-                          <h3 className="text-xl font-semibold text-gray-800 group-hover:text-green-700 transition-colors">{cause.title}</h3>
-                        </div>
-                        <p className="text-gray-600 mb-6 line-clamp-2">{cause.description}</p>
-                        
-                        <div className="mb-6">
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-medium text-gray-700">Progress</span>
-                            <span className="text-sm text-gray-500">
-                              {Math.round(((cause.currentAmount || 0) / cause.targetAmount) * 100)}%
-                            </span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                            <div 
-                              className="bg-gradient-to-r from-green-500 to-emerald-500 h-3 rounded-full transition-all duration-500 ease-out" 
-                              style={{ width: `${Math.min(((cause.currentAmount || 0) / cause.targetAmount) * 100, 100)}%` }}
-                            ></div>
-                          </div>
-                          <div className="flex justify-between mt-2">
-                            <span className="text-sm text-gray-500">
-                              ₹{(cause.currentAmount || 0).toLocaleString()} raised
-                            </span>
-                            <span className="text-sm text-gray-500">
-                              ₹{cause.targetAmount.toLocaleString()} goal
-                            </span>
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                          <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                            <Package className="h-4 w-4 text-gray-500" />
-                          <div>
-                              <p className="text-xs text-gray-500">Total Totes</p>
-                              <p className="font-semibold text-gray-800">{cause.totalTotes}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                            <Users className="h-4 w-4 text-gray-500" />
-                          <div>
-                              <p className="text-xs text-gray-500">Claimed Totes</p>
-                              <p className="font-semibold text-gray-800">{cause.claimedTotes}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                            <CheckCircle className="h-4 w-4 text-gray-500" />
-                          <div>
-                              <p className="text-xs text-gray-500">Shipped/Delivered</p>
-                              <p className="font-semibold text-gray-800">{cause.shippedClaims}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                            <Target className="h-4 w-4 text-gray-500" />
-                          <div>
-                              <p className="text-xs text-gray-500">Category</p>
-                              <p className="font-semibold text-gray-800">{cause.category}</p>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex flex-wrap gap-3">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => navigate(`/cause/${cause._id}`)}
-                            className="border-green-200 text-green-700 hover:bg-green-50"
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Cause
-                          </Button>
-                          {cause.distributionStartDate && cause.distributionEndDate && (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => navigate(`/admin/distribution/${cause._id}`)}
-                              className="border-blue-200 text-blue-700 hover:bg-blue-50"
-                            >
-                              <Calendar className="h-4 w-4 mr-2" />
-                              Manage Distribution
-                            </Button>
-                          )}
-                        </div>
-                      </div>
+                  </div>
+                  
+                  <div className="md:w-2/3 p-7">
+                    <div className="flex justify-between items-start mb-3">
+                      <h3 className="text-2xl font-bold text-gray-800 group-hover:text-green-700 transition-colors font-serif">
+                        {sponsorship.cause?.title || 'Unknown Cause'}
+                      </h3>
                     </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <Card className="text-center py-16 border-dashed border-2 border-gray-200 bg-gray-50">
-                <div className="mx-auto w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
-                  <Award className="h-8 w-8 text-gray-400" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-2">No causes created yet</h3>
-                <p className="text-gray-500 mb-6 max-w-md mx-auto">Start making an impact by creating your first cause and connecting with sponsors.</p>
-                <Button onClick={() => navigate('/create-cause')} className="bg-green-600 hover:bg-green-700">
-                  Create New Cause
-                </Button>
-              </Card>
-            )}
-            
-            {sponsorCauses.length > 0 && (
-              <div className="text-center pt-6">
-                <Button onClick={() => navigate('/create-cause')} className="bg-green-600 hover:bg-green-700">
-                  Create New Cause
-                </Button>
-              </div>
-            )}
-          </div>
-          */}
-        </TabsContent>
-        
-        <TabsContent value="totes-claimed">
-          <div className="space-y-6">
-            {verifiedClaims.length > 0 ? (
-              verifiedClaims.map((causeData) => (
-                <Card key={causeData.causeId} className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md">
-                  <CardHeader className="pb-4">
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-center gap-4">
-                        <div className="relative">
-                        <img 
-                          src={getImageUrl(causeData.causeImageUrl)} 
-                          alt={causeData.causeTitle} 
-                            className="w-16 h-16 object-cover rounded-lg"
-                          onError={(e) => handleImageError(e)}
-                        />
-                          <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
-                            <CheckCircle className="h-3 w-3 text-white" />
-                          </div>
+                    <p className="text-gray-600 mb-6 line-clamp-2 text-sm leading-relaxed">
+                      {sponsorship.cause?.description || 'No description available'}
+                    </p>
+                    
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                        <div className="p-2 bg-green-100 rounded-lg text-green-600">
+                          <DollarSign className="h-4 w-4" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg">{causeData.causeTitle}</CardTitle>
-                          <p className="text-sm text-gray-500 mt-1">{causeData.causeCategory}</p>
+                          <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400">Contribution</p>
+                          <p className="font-bold text-gray-800">₹{sponsorship.totalAmount?.toLocaleString()}</p>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-100">
-                          {causeData.totalClaims} Verified Claims
-                        </Badge>
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                        <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+                          <Package className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400">Totes</p>
+                          <p className="font-bold text-gray-800">{sponsorship.toteQuantity}</p>
+                        </div>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="mb-6">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-medium text-gray-700">Claim Progress</span>
-                        <span className="text-sm text-gray-500">
-                          {Math.round((causeData.totalClaims / 100) * 100)}% of capacity
-                        </span>
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                        <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
+                          <Building2 className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400">Organization</p>
+                          <p className="font-bold text-gray-800 truncate max-w-[80px]">{sponsorship.organizationName}</p>
+                        </div>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                        <div 
-                          className="bg-gradient-to-r from-blue-500 to-cyan-500 h-3 rounded-full transition-all duration-500 ease-out" 
-                          style={{ width: `${Math.min((causeData.totalClaims / 100) * 100, 100)}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                      <div className="text-center p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg">
-                        <p className="text-2xl font-bold text-green-600">{causeData.totalClaims}</p>
-                        <p className="text-sm text-gray-500">Total Verified</p>
-                      </div>
-                      <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg">
-                        <p className="text-2xl font-bold text-blue-600">
-                          {causeData.claims.filter(claim => claim.status === 'verified').length}
-                        </p>
-                        <p className="text-sm text-gray-500">Verified</p>
-                      </div>
-                      <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg">
-                        <p className="text-2xl font-bold text-purple-600">
-                          {causeData.claims.filter(claim => claim.status === 'verified').length}
-                        </p>
-                        <p className="text-sm text-gray-500">Ready for Processing</p>
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                        <div className="p-2 bg-purple-100 rounded-lg text-purple-600">
+                          <Calendar className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider font-bold text-gray-400">Date</p>
+                          <p className="font-bold text-gray-800">{new Date(sponsorship.createdAt).toLocaleDateString()}</p>
+                        </div>
                       </div>
                     </div>
                     
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4 mb-6">
-                      <p className="text-green-800 font-medium flex items-center gap-2">
-                        { causeData.totalClaims > 0 ? (
-                          <>
-                            <span role="img" aria-label="celebration">🎉</span>
-                            {causeData.totalClaims} people have claimed your totes!
-                          </>
-                        ):(
-                          <>
-                            <AlertCircle className="h-4 w-4" />
-                            No totes claimed yet. Share your cause to get more claims!
-                          </>
-                        )
-                      }
-                      </p>
-                      {causeData.claims.filter(claim => claim.status === 'verified').length > 0 && (
-                        <p className="text-green-700 text-sm mt-2">
-                          {causeData.claims.filter(claim => claim.status === 'verified').length} totes have been verified and are ready for processing.
-                        </p>
-                      )}
-                    </div>
-                    
-                    {causeData.claims.length > 0 && (
-                      <div className="mt-6">
-                        <h4 className="font-medium mb-4 flex items-center gap-2">
-                          <FileText className="h-4 w-4" />
-                          Recent Verified Claims:
-                        </h4>
-                        <div className="space-y-3">
-                          {causeData.claims.slice(0, 5).map((claim) => (
-                            <div key={claim._id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="font-medium text-gray-800">{claim.fullName}</span>
-                                  <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300 text-xs">
-                                    Verified
-                                  </Badge>
-                                </div>
-                                <div className="flex items-center gap-4 text-sm text-gray-500">
-                                  <span className="flex items-center gap-1">
-                                    <MapPin className="h-3 w-3" />
-                                    {claim.city}, {claim.state}
-                                  </span>
-                                  {/* <span className="flex items-center gap-1">
-                                    <Target className="h-3 w-3" />
-                                    {claim.purpose}
-                                  </span> */}
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <span className="text-xs text-gray-400">
-                                  {new Date(claim.createdAt).toLocaleDateString()}
-                                </span>
+                    <div className="flex flex-wrap gap-3">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => navigate(`/dashboard/report/${sponsorship._id}`)}
+                        className="rounded-full px-5 border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-green-700 hover:border-green-200 transition-all font-semibold"
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        View Report
+                      </Button>
+                      
+                      <Sheet>
+                        <SheetTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="rounded-full px-5 gap-1.5 border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-blue-700 hover:border-blue-200 transition-all font-semibold"
+                          >
+                            <QrCode className="h-4 w-4" />
+                            <span>QR Code</span>
+                          </Button>
+                        </SheetTrigger>
+                        <SheetContent className="sm:max-w-md">
+                          <SheetHeader className="text-left">
+                            <SheetTitle className="text-2xl font-serif">Impact Gateway</SheetTitle>
+                            <SheetDescription>
+                              This custom QR code is your direct link to positive change. It's printed on every tote you've sponsored.
+                            </SheetDescription>
+                          </SheetHeader>
+                          <div className="flex flex-col items-center justify-center py-10">
+                            <div className="relative group cursor-pointer">
+                              <div className="absolute -inset-1 bg-gradient-to-r from-green-600 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                              <div className="relative bg-white p-6 rounded-xl shadow-xl">
+                                <img 
+                                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.origin}/claim/${sponsorship.cause?._id || 'unknown'}?source=qr&ref=sponsor-dashboard`)}`}
+                                  alt="Impact QR Code"
+                                  className="w-56 h-56"
+                                />
                               </div>
                             </div>
-                          ))}
-                        </div>
-                        {causeData.claims.length > 5 && (
-                          <p className="text-sm text-gray-500 mt-3 text-center">
-                            Showing 5 of {causeData.claims.length} verified claims
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                  <CardFooter>
-                    <Button 
-                      variant="outline" 
-                      className="w-full border-green-200 text-green-700 hover:bg-green-50"
-                      onClick={() => navigate(`/cause/${causeData.causeId}`)}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      View Full Cause Details
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))
-            ) : (
-              <Card className="text-center py-16 border-dashed border-2 border-gray-200 bg-gray-50">
-                <div className="mx-auto w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
-                  <Package className="h-8 w-8 text-gray-400" />
+                            <div className="mt-8 text-center space-y-4">
+                              <p className="text-sm text-gray-500 max-w-xs mx-auto italic">
+                                "When scanned, this code leads directly to your cause's story and claim page."
+                              </p>
+                              <div className="flex gap-2 justify-center">
+                                <Button className="bg-green-600 hover:bg-green-700 rounded-full px-6 font-bold">
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Download QR
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </SheetContent>
+                      </Sheet>
+                      
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="rounded-full px-5 gap-1.5 text-gray-500 hover:text-purple-700 hover:bg-purple-50 transition-all"
+                        onClick={() => handleDownloadCSV(sponsorship._id)}
+                      >
+                        <Download className="h-4 w-4" />
+                        <span>Claims CSV</span>
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-                <h3 className="text-xl font-semibold text-gray-700 mb-2">No verified claims yet</h3>
-                <p className="text-gray-500 mb-6 max-w-md mx-auto">Once people start claiming totes from your sponsored causes and their claims get verified, you'll see the impact here.</p>
-                <Button onClick={() => navigate('/causes')} className="bg-green-600 hover:bg-green-700">
-                  Browse Causes to Sponsor
-                </Button>
-              </Card>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <Card className="text-center py-24 border-dashed border-2 border-gray-200 bg-gray-50 rounded-2xl">
+            <div className="mx-auto w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
+              <Building2 className="h-10 w-10 text-gray-400" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800 mb-3 font-serif">Your Journey Awaits</h3>
+            <p className="text-gray-500 mb-8 max-w-sm mx-auto leading-relaxed">
+              Step into the world of meaningful impact. Start by sponsoring a cause that resonates with your values.
+            </p>
+            <Button onClick={() => navigate('/causes')} className="bg-green-600 hover:bg-green-700 px-8 py-6 h-auto text-lg rounded-full font-bold shadow-lg shadow-green-100 transition-all hover:-translate-y-1">
+              Explore Causes
+            </Button>
+          </Card>
+        )}
+      </div>
     </DashboardLayout>
   );
 };
 
 export default SponsorDashboard;
-
-

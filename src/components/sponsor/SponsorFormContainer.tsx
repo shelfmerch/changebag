@@ -6,6 +6,7 @@ import OnboardingWizard from './OnboardingWizard';
 import SponsorBenefits from './SponsorBenefits';
 import axios from 'axios';
 import config from '@/config';
+import { useAuth } from '@/context/AuthContext';
 
 interface SponsorFormContainerProps {
   causeId: string | null;
@@ -14,6 +15,7 @@ interface SponsorFormContainerProps {
 const SponsorFormContainer: React.FC<SponsorFormContainerProps> = ({ causeId }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   
   const handleSubmitComplete = async (formData: any) => {
@@ -235,6 +237,11 @@ const SponsorFormContainer: React.FC<SponsorFormContainerProps> = ({ causeId }) 
         description: "Thank you for your sponsorship! We'll review your request and get back to you soon.",
       });
       
+      // Refresh user data to get the new 'sponsor' role before redirect
+      setTimeout(() => {
+        refreshUser();
+      }, 500);
+
       // Navigate to a confirmation page instead of dashboard
       navigate('/sponsorship/confirmation', { 
         state: { sponsorshipId: responseData._id } 

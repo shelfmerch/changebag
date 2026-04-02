@@ -54,6 +54,7 @@ import WaitlistEmailPreviewPage from "./pages/claimer/WaitlistEmailPreview";
 
 // Dashboard Pages
 import SponsorDashboard from "./pages/dashboard/SponsorDashboard";
+import SponsorshipReport from "./pages/dashboard/SponsorshipReport";
 import ClaimerDashboard from "./pages/dashboard/ClaimerDashboard";
 import AdminDashboard from "./pages/dashboard/AdminDashboard";
 
@@ -173,6 +174,11 @@ const App: React.FC = () => {
                 <Route path="/dashboard" element={
                   <ProtectedRoute allowedRoles={['sponsor', 'admin']}>
                     <SponsorDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/dashboard/report/:id" element={
+                  <ProtectedRoute allowedRoles={['sponsor', 'admin']}>
+                    <SponsorshipReport />
                   </ProtectedRoute>
                 } />
                 <Route path="/dashboard/admin" element={
