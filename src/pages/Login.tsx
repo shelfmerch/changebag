@@ -29,14 +29,10 @@ const LoginPage = () => {
   const handleRedirect = (role?: string) => {
     if (from) {
       navigate(from);
-    } else if (role === 'sponsor') {
-      navigate('/dashboard/sponsor');
-    } else if (role === 'claimer' || role === 'user') {
-      navigate('/dashboard/claimer');
     } else if (role === 'admin') {
       navigate('/dashboard/admin');
     } else {
-      navigate('/');
+      navigate('/profile');
     }
   };
 

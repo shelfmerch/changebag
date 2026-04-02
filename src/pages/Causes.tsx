@@ -163,10 +163,6 @@ const CausesPage = () => {
 
   // Handle claim button click
   const handleClaimAction = (cause: Cause) => {
-    if (!user) {
-      navigate(`/login?redirect=/claim/${cause._id}?source=direct&ref=causes-page`);
-      return;
-    }
     navigate(`/claim/${cause._id}?source=direct&ref=causes-page`);
   };
 
@@ -223,10 +219,6 @@ const CausesPage = () => {
       return (
         <Button
           onClick={() => {
-            if (!user) {
-              navigate(`/login?redirect=/waitlist/${cause._id}`);
-              return;
-            }
             navigate(`/waitlist/${cause._id}`);
           }}
           className="w-full"

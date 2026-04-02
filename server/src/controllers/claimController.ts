@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Claim, { ClaimStatus, ClaimSource } from '../models/claims';
+import { sendEmail } from '../lib/email';
 
 // Create a new claim
 export const createClaim = async (req: Request, res: Response): Promise<void> => {
@@ -98,10 +99,41 @@ export const createClaim = async (req: Request, res: Response): Promise<void> =>
     await claim.save();
     
     // Update the cause's available totes count
-    await Cause.findByIdAndUpdate(causeId, {
+    await mongoose.model('Cause').findByIdAndUpdate(causeId, {
       $inc: { claimedTotes: 1, availableTotes: -1 }
     });
     
+    // Send confirmation email
+    try {
+      const currentYear = new Date().getFullYear();
+      const claimDate = new Date().toLocaleDateString();
+      const subject = `Your ChangeBag Tote Claim Confirmation - ${causeTitle}`;
+      const htmlContent = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
+          <h2 style="color: #10b981; border-bottom: 2px solid #10b981; padding-bottom: 10px;">Tote Claim Received!</h2>
+          <p>Hi ${fullName},</p>
+          <p>Congratulations! Your claim for a <strong>${causeTitle}</strong> tote bag has been successfully received.</p>
+          <p>Our team is currently verifying the details. You will receive another update as soon as your tote has been shipped.</p>
+          <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 25px 0; border: 1px solid #e5e7eb;">
+            <p style="margin: 0 0 10px 0; font-weight: bold; color: #111827;">Claim Details:</p>
+            <ul style="padding-left: 20px; color: #4b5563; margin: 0;">
+              <li style="margin-bottom: 5px;"><strong>Cause:</strong> ${causeTitle}</li>
+              <li style="margin-bottom: 5px;"><strong>Status:</strong> Pending Verification</li>
+              <li><strong>Date:</strong> ${claimDate}</li>
+            </ul>
+          </div>
+          <p>Thank you for supporting this cause and choosing a sustainable alternative to single-use bags!</p>
+          <p style="margin-top: 30px;">Best regards,<br><strong>The ChangeBag Team</strong></p>
+          <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+          <p style="font-size: 12px; color: #9ca3af; text-align: center;">If you did not make this claim or have any questions, please contact us at support@changebag.com.</p>
+          <p style="font-size: 12px; color: #9ca3af; text-align: center;">&copy; ${currentYear} ChangeBag. Brand For Good.</p>
+        </div>
+      `;
+      await sendEmail(email, subject, htmlContent);
+    } catch (emailError) {
+      console.error('Error sending claim confirmation email:', emailError);
+    }
+
     res.status(201).json(claim);
   } catch (error) {
     console.error('Error creating claim:', error);
@@ -175,6 +207,46 @@ export const updateClaimStatus = async (req: Request, res: Response): Promise<vo
     }
 
     await claim.save();
+
+    // Send status update email
+    if (status === ClaimStatus.VERIFIED || status === ClaimStatus.SHIPPED) {
+      try {
+        const subject = status === ClaimStatus.VERIFIED ? 
+          `Status Update: Claim Confirmed for ${claim.causeTitle}` : 
+          `Exciting Update: Your ${claim.causeTitle} Tote Has Been Shipped!`;
+        
+        const title = status === ClaimStatus.VERIFIED ? 'Claim Confirmed!' : 'Tote Shipped!';
+        const bodyContent = status === ClaimStatus.VERIFIED ? 
+          `Great news! Your claim for a <strong>${claim.causeTitle}</strong> tote bag has been confirmed and verified by our team. We've started preparing it for shipment.` : 
+          `Exciting news! Your <strong>${claim.causeTitle}</strong> tote bag has been shipped and is on its way to you. Keep an eye out!`;
+
+        const htmlContent = `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
+            <h2 style="color: #10b981; border-bottom: 2px solid #10b981; padding-bottom: 10px;">${title}</h2>
+            <p>Hi ${claim.fullName},</p>
+            <p>${bodyContent}</p>
+            <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 25px 0; border: 1px solid #e5e7eb;">
+              <p style="margin: 0 0 10px 0; font-weight: bold; color: #111827;">Updated Claim Details:</p>
+              <ul style="padding-left: 20px; color: #4b5563; margin: 0;">
+                <li style="margin-bottom: 5px;"><strong>Cause:</strong> ${claim.causeTitle}</li>
+                <li style="margin-bottom: 5px;"><strong>New Status:</strong> ${status.charAt(0).toUpperCase() + status.slice(1)}</li>
+                ${status === ClaimStatus.SHIPPED ? `<li><strong>Shipment Date:</strong> ${new Date().toLocaleDateString()}</li>` : ''}
+              </ul>
+            </div>
+            <p>Thank you for supporting this cause and choosing sustainable alternatives!</p>
+            <p style="margin-top: 30px;">Best regards,<br><strong>The ChangeBag Team</strong></p>
+            <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+            <p style="font-size: 12px; color: #9ca3af; text-align: center;">&copy; ${new Date().getFullYear()} ChangeBag. Brand For Good.</p>
+          </div>
+        `;
+        
+        await sendEmail(claim.email, subject, htmlContent);
+        console.log(`Status update email (${status}) sent to ${claim.email}`);
+      } catch (emailError) {
+        console.error('Error sending status update email:', emailError);
+      }
+    }
+
     res.status(200).json(claim);
   } catch (error) {
     console.error('Error updating claim status:', error);

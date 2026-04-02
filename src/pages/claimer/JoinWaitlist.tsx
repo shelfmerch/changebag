@@ -74,14 +74,8 @@ const JoinWaitlistPage = () => {
     },
   });
 
-  // Protect route and auto-fill data
+  // Auto-fill data if user is logged in
   useEffect(() => {
-    if (!user && !isAuthLoading && !loading) {
-      const currentPath = location.pathname + location.search;
-      navigate(`/login?redirect=${encodeURIComponent(currentPath)}`);
-      return;
-    }
-
     if (user) {
       form.reset({
         fullName: user.name || '',
@@ -92,7 +86,7 @@ const JoinWaitlistPage = () => {
         notifySms: form.getValues('notifySms'),
       });
     }
-  }, [user, isAuthLoading, loading, navigate, location.pathname, location.search, form]);
+  }, [user, form]);
 
   // Fetch cause data
   useEffect(() => {

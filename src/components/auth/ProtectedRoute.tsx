@@ -5,7 +5,7 @@ import { UserRole } from '../../types';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles: UserRole[];
+  allowedRoles?: UserRole[];
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
@@ -23,7 +23,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
   }
 
   // If user doesn't have the required role, redirect to unauthorized page
-  if (!allowedRoles.includes(user.role as UserRole)) {
+  if (allowedRoles && !allowedRoles.includes(user.role as UserRole)) {
     return <Navigate to="/unauthorized" state={{ from: location }} replace />;
   }
 
