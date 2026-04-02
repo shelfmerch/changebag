@@ -23,13 +23,14 @@ export interface IClaim extends Document {
   fullName: string;
   email: string;
   phone: string;
-  purpose: string;
+  // purpose: string;
   address: string;
   city: string;
   state: string;
   zipCode: string;
   status: ClaimStatus;
   emailVerified: boolean;
+  phoneVerified: boolean;
   source: ClaimSource;
   referrerUrl?: string;
   qrCodeScanned: boolean;
@@ -82,10 +83,10 @@ const claimSchema = new Schema<IClaim>(
       type: String,
       required: true
     },
-    purpose: {
-      type: String,
-      required: true
-    },
+    // purpose: {
+    //   type: String,
+    //   required: true
+    // },
     address: {
       type: String,
       required: true
@@ -108,6 +109,10 @@ const claimSchema = new Schema<IClaim>(
       default: ClaimStatus.PENDING
     },
     emailVerified: {
+      type: Boolean,
+      default: false
+    },
+    phoneVerified: {
       type: Boolean,
       default: false
     },

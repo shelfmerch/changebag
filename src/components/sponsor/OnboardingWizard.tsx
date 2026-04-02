@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/AuthContext';
 import { Progress } from '@/components/ui/progress';
 import { toast } from '@/components/ui/use-toast';
 import CauseSelectionStep from './wizard/CauseSelectionStep';
@@ -24,10 +25,13 @@ const OnboardingWizard = ({
   isWidget = false,
   onStepChange
 }: OnboardingWizardProps) => {
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [causeData, setCauseData] = useState<any>(null);
   const [claimedTotes, setClaimedTotes] = useState(0);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [emailStatus, setEmailStatus] = useState<'unverified' | 'verified'>('unverified');
+  const [phoneStatus, setPhoneStatus] = useState<'unverified' | 'verified'>('unverified');
   const [formData, setFormData] = useState({
     organizationName: '',
     contactName: '',
@@ -171,6 +175,20 @@ const OnboardingWizard = ({
     }
   }, [initialCauseId]);
 
+  // Auto-fill from user profile
+  useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        contactName: user.name || prev.contactName,
+        email: user.email || prev.email,
+        phone: user.phone || prev.phone,
+      }));
+      if (user.emailVerified) setEmailStatus('verified');
+      if (user.phoneVerified) setPhoneStatus('verified');
+    }
+  }, [user]);
+
   /**
    * Calculate total totes based on distribution type and settings
    * 
@@ -245,6 +263,12 @@ const OnboardingWizard = ({
         }
         if (!formData.phone || formData.phone.trim() === '') {
           return { isValid: false, message: 'Phone number is required' };
+        }
+        if (emailStatus !== 'verified') {
+          return { isValid: false, message: 'Please verify your email address' };
+        }
+        if (phoneStatus !== 'verified') {
+          return { isValid: false, message: 'Please verify your phone number' };
         }
         return { isValid: true };
 
@@ -490,6 +514,10 @@ const OnboardingWizard = ({
           updateFormData={updateFormData}
           causeData={causeData}
           validationError={validationError}
+          emailStatus={emailStatus}
+          phoneStatus={phoneStatus}
+          setEmailStatus={setEmailStatus}
+          setPhoneStatus={setPhoneStatus}
         />
       )}
 

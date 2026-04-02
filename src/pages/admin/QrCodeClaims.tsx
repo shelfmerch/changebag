@@ -43,7 +43,7 @@ interface Claim {
   fullName: string;
   email: string;
   phone: string;
-  purpose: string;
+  // purpose: string;
   address: string;
   city: string;
   state: string;
@@ -379,10 +379,10 @@ const QrCodeClaims = () => {
                 <p className="font-medium">{selectedClaim.causeTitle}</p>
               </div>
               
-              <div>
+              {/* <div>
                 <p className="text-sm font-medium text-gray-500">Purpose</p>
                 <p className="text-gray-700">{selectedClaim.purpose}</p>
-              </div>
+              </div> */}
               
               {/* <div>
                 <p className="text-sm font-medium text-gray-500">Address</p>

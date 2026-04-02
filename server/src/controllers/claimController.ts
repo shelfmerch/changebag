@@ -5,13 +5,14 @@ import Claim, { ClaimStatus, ClaimSource } from '../models/claims';
 // Create a new claim
 export const createClaim = async (req: Request, res: Response): Promise<void> => {
   try {
+    console.log('Received claim request:', req.body);
     const {
       causeId,
       causeTitle,
       fullName,
       email,
       phone,
-      purpose,
+      // purpose,
       address,
       city,
       state,
@@ -30,6 +31,7 @@ export const createClaim = async (req: Request, res: Response): Promise<void> =>
     });
     
     if (existingClaim) {
+      console.log('Duplicate claim detected for email:', email);
       res.status(400).json({
         message: 'You have already claimed a tote for this cause. Each user can claim only one tote per cause.'
       });
@@ -46,6 +48,7 @@ export const createClaim = async (req: Request, res: Response): Promise<void> =>
     }
     
     if (cause.availableTotes <= 0) {
+      console.log('No totes available for cause:', causeId);
       res.status(400).json({ message: 'No totes available for this cause' });
       return;
     }
@@ -77,7 +80,7 @@ export const createClaim = async (req: Request, res: Response): Promise<void> =>
       fullName,
       email,
       phone,
-      purpose,
+      // purpose,
       address,
       city,
       state,
@@ -118,7 +121,7 @@ export const getRecentClaims = async (req: Request, res: Response): Promise<void
       .skip(skip)
       .limit(limit)
       .populate('causeId', 'title')
-      .select('causeId causeTitle fullName email phone purpose address city state zipCode status emailVerified source referrerUrl qrCodeScanned createdAt updatedAt shippingDate deliveryDate');
+      .select('causeId causeTitle fullName email phone address city state zipCode status emailVerified source referrerUrl qrCodeScanned createdAt updatedAt shippingDate deliveryDate');
 
     const total = await Claim.countDocuments();
 
@@ -317,7 +320,7 @@ export const getVerifiedClaimsForSponsoredCauses = async (req: Request, res: Res
     })
     .populate('causeId', 'title imageUrl category')
     .sort({ createdAt: -1 })
-    .select('causeId causeTitle fullName email phone purpose address city state zipCode status emailVerified source referrerUrl qrCodeScanned createdAt updatedAt shippingDate deliveryDate');
+    .select('causeId causeTitle fullName email phone address city state zipCode status emailVerified source referrerUrl qrCodeScanned createdAt updatedAt shippingDate deliveryDate');
     
     console.log('Found verified claims:', verifiedClaims.length);
     console.log('Verified claims data:', verifiedClaims);
@@ -381,7 +384,7 @@ export const getClaimsBySource = async (req: Request, res: Response): Promise<vo
       .skip(skip)
       .limit(limit)
       .populate('causeId', 'title')
-      .select('causeId causeTitle fullName email phone purpose address city state zipCode status emailVerified source referrerUrl qrCodeScanned createdAt updatedAt shippingDate deliveryDate');
+      .select('causeId causeTitle fullName email phone address city state zipCode status emailVerified source referrerUrl qrCodeScanned createdAt updatedAt shippingDate deliveryDate');
 
     const total = await Claim.countDocuments({ source });
 
@@ -416,7 +419,7 @@ export const getQrCodeClaims = async (req: Request, res: Response): Promise<void
       .skip(skip)
       .limit(limit)
       .populate('causeId', 'title')
-      .select('causeId causeTitle fullName email phone purpose address city state zipCode status emailVerified source referrerUrl qrCodeScanned createdAt updatedAt shippingDate deliveryDate');
+      .select('causeId causeTitle fullName email phone address city state zipCode status emailVerified source referrerUrl qrCodeScanned createdAt updatedAt shippingDate deliveryDate');
 
     const total = await Claim.countDocuments({ 
       $or: [
@@ -549,7 +552,7 @@ export const getDirectClaims = async (req: Request, res: Response): Promise<void
       .skip(skip)
       .limit(limit)
       .populate('causeId', 'title')
-      .select('causeId causeTitle fullName email phone purpose address city state zipCode status emailVerified source referrerUrl qrCodeScanned createdAt updatedAt shippingDate deliveryDate');
+      .select('causeId causeTitle fullName email phone address city state zipCode status emailVerified source referrerUrl qrCodeScanned createdAt updatedAt shippingDate deliveryDate');
 
     const total = await Claim.countDocuments({ source: ClaimSource.DIRECT });
 
@@ -582,7 +585,7 @@ export const getVerifiedDirectClaims = async (req: Request, res: Response): Prom
       .skip(skip)
       .limit(limit)
       .populate('causeId', 'title')
-      .select('causeId causeTitle fullName email phone purpose address city state zipCode status emailVerified source referrerUrl qrCodeScanned createdAt updatedAt shippingDate deliveryDate trackingNumber carrier estimatedDelivery');
+      .select('causeId causeTitle fullName email phone address city state zipCode status emailVerified source referrerUrl qrCodeScanned createdAt updatedAt shippingDate deliveryDate trackingNumber carrier estimatedDelivery');
 
     const total = await Claim.countDocuments({ 
       source: ClaimSource.DIRECT,

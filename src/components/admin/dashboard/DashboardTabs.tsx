@@ -46,7 +46,7 @@ interface Claim {
   fullName: string;
   email: string;
   phone: string;
-  purpose: string;
+  // purpose: string;
   status: 'pending' | 'verified' | 'shipped' | 'delivered' | 'cancelled';
   createdAt: string;
 }

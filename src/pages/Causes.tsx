@@ -1,12 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import Layout from '@/components/Layout';
-
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -49,8 +45,9 @@ interface Cause {
 
 const CausesPage = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const location = useLocation();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -167,12 +164,7 @@ const CausesPage = () => {
   // Handle claim button click
   const handleClaimAction = (cause: Cause) => {
     if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please login to claim a tote.",
-        variant: "destructive",
-      });
-      navigate('/login', { state: { from: { pathname: `/claim/${cause._id}`, search: '?source=direct&ref=causes-page' } } });
+      navigate(`/login?redirect=/claim/${cause._id}?source=direct&ref=causes-page`);
       return;
     }
     navigate(`/claim/${cause._id}?source=direct&ref=causes-page`);
@@ -180,19 +172,12 @@ const CausesPage = () => {
 
   // Handle sponsor button click
   const handleSponsorAction = (cause: Cause) => {
-
     if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please login to sponsor a cause.",
-        variant: "destructive",
-      });
-      navigate('/login', { state: { from: { pathname: `/causes` } } });
+      navigate(`/login?redirect=/sponsor/new?causeId=${cause._id}`);
       return;
     }
 
     navigate(`/sponsor/new?causeId=${cause._id}`);
-
   };
 
   // Get the details/claim button based on sponsorship status
@@ -237,7 +222,13 @@ const CausesPage = () => {
     if (!hasApprovedSponsorship(cause)) {
       return (
         <Button
-          onClick={() => navigate(`/waitlist/${cause._id}`)}
+          onClick={() => {
+            if (!user) {
+              navigate(`/login?redirect=/waitlist/${cause._id}`);
+              return;
+            }
+            navigate(`/waitlist/${cause._id}`);
+          }}
           className="w-full"
           variant="outline"
         >

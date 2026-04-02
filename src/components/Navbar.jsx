@@ -111,7 +111,7 @@ export default function Navbar() {
                   <p className="text-xs text-gray-500 capitalize font-medium">{user.role}</p>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate(`/dashboard/${user.role}`)} className="cursor-pointer py-3 text-sm font-medium">
+                <DropdownMenuItem onClick={() => navigate('/dashboard')} className="cursor-pointer py-3 text-sm font-medium">
                   Dashboard
                 </DropdownMenuItem>
                 {user.role === 'admin' && (

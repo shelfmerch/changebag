@@ -14,7 +14,11 @@ import { getImageUrl, handleImageError } from '@/utils/imageUtils';
 import config from '@/config';
 import axios from 'axios';
 
-const SponsorDashboard = () => {
+interface SponsorDashboardProps {
+  isNested?: boolean;
+}
+
+const SponsorDashboard = ({ isNested = false }: SponsorDashboardProps) => {
   const [sponsorships, setSponsorships] = useState<Sponsorship[]>([]);
   const [sponsorCauses, setSponsorCauses] = useState<SponsorCause[]>([]);
   const [verifiedClaims, setVerifiedClaims] = useState<VerifiedClaimsData[]>([]);
@@ -56,6 +60,11 @@ const SponsorDashboard = () => {
         setVerifiedClaims(verifiedClaimsResponse.data);
       } catch (err: any) {
         console.error('Error fetching data:', err);
+        if (err.response?.status === 401) {
+          const currentPath = window.location.pathname + window.location.search;
+          navigate(`/login?redirect=${encodeURIComponent(currentPath)}`);
+          return;
+        }
         setError(err.response?.data?.message || 'Failed to load dashboard data');
       } finally {
         setLoading(false);
@@ -150,7 +159,7 @@ interface VerifiedClaim {
   fullName: string;
   email: string;
   phone: string;
-  purpose: string;
+  // purpose: string;
   address: string;
   city: string;
   state: string;
@@ -237,51 +246,60 @@ interface Sponsorship {
 
   // Loading state
   if (loading) {
+    const loadingContent = (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4">
+        <div className="relative">
+          <Loader2 className="h-12 w-12 animate-spin text-green-600" />
+          <div className="absolute inset-0 rounded-full border-4 border-green-200 animate-pulse"></div>
+        </div>
+        <div className="text-center">
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">Loading your sponsorships...</h3>
+          <p className="text-gray-500">Gathering your impact data</p>
+        </div>
+      </div>
+    );
+
+    if (isNested) return loadingContent;
+
     return (
       <DashboardLayout 
         title="Sponsor Dashboard" 
         subtitle={`Welcome back, ${user?.name}`}
       >
-        <div className="flex flex-col items-center justify-center py-20 space-y-4">
-          <div className="relative">
-            <Loader2 className="h-12 w-12 animate-spin text-green-600" />
-            <div className="absolute inset-0 rounded-full border-4 border-green-200 animate-pulse"></div>
-          </div>
-          <div className="text-center">
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">Loading your sponsorships...</h3>
-            <p className="text-gray-500">Gathering your impact data</p>
-          </div>
-        </div>
+        {loadingContent}
       </DashboardLayout>
     );
   }
 
   // Error state
   if (error) {
+    const errorContent = (
+      <div className="text-center py-12">
+        <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+          <XCircle className="h-8 w-8 text-red-600" />
+        </div>
+        <h3 className="text-xl font-semibold text-gray-700 mb-2">Oops! Something went wrong</h3>
+        <p className="text-gray-500 mb-6">{error}</p>
+        <Button onClick={() => window.location.reload()} className="bg-green-600 hover:bg-green-700">
+          Try Again
+        </Button>
+      </div>
+    );
+
+    if (isNested) return errorContent;
+
     return (
       <DashboardLayout 
         title="Sponsor Dashboard" 
         subtitle={`Welcome back, ${user?.name}`}
       >
-        <div className="text-center py-12">
-          <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
-            <XCircle className="h-8 w-8 text-red-600" />
-          </div>
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">Oops! Something went wrong</h3>
-          <p className="text-gray-500 mb-6">{error}</p>
-          <Button onClick={() => window.location.reload()} className="bg-green-600 hover:bg-green-700">
-            Try Again
-          </Button>
-        </div>
+        {errorContent}
       </DashboardLayout>
     );
   }
 
-  return (
-    <DashboardLayout 
-      title="Sponsor Dashboard" 
-      subtitle={`Welcome back, ${user?.name}. Here's the impact you're creating today.`}
-    >
+  const mainContent = (
+    <>
       {/* Enhanced Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card className="relative overflow-hidden border border-gray-100 shadow-sm bg-white hover:shadow-md transition-all duration-300">
@@ -521,13 +539,11 @@ interface Sponsorship {
         
         <TabsContent value="my-causes">
           <div className="text-center py-24 bg-white rounded-2xl border border-dashed border-gray-200 shadow-sm">
-            <div className="mx-auto w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mb-6">
-              <span className="text-4xl">✨</span>
-            </div>
+            
             <h3 className="text-3xl font-bold font-serif text-gray-900 mb-4">Create Your Own Cause</h3>
             <p className="text-gray-500 max-w-lg mx-auto mb-10 text-lg leading-relaxed">
               Coming soon! You'll soon have the power to create your own meaningful causes, set impact targets, 
-              and connect with verified sponsors to bring your vision of change to life across India.
+              and connect with verified sponsors to bring your vision of change to life! 
             </p>
             <div className="inline-flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-full font-bold text-sm tracking-wide uppercase">
               <span className="relative flex h-2 w-2">
@@ -790,10 +806,10 @@ interface Sponsorship {
                                     <MapPin className="h-3 w-3" />
                                     {claim.city}, {claim.state}
                                   </span>
-                                  <span className="flex items-center gap-1">
+                                  {/* <span className="flex items-center gap-1">
                                     <Target className="h-3 w-3" />
                                     {claim.purpose}
-                                  </span>
+                                  </span> */}
                                 </div>
                               </div>
                               <div className="text-right">
@@ -839,6 +855,17 @@ interface Sponsorship {
           </div>
         </TabsContent>
       </Tabs>
+    </>
+  );
+
+  if (isNested) return <div className="p-4 md:p-8">{mainContent}</div>;
+
+  return (
+    <DashboardLayout 
+      title="Sponsor Dashboard" 
+      subtitle={`Welcome back, ${user?.name}. Here's the impact you're creating today.`}
+    >
+      {mainContent}
     </DashboardLayout>
   );
 };

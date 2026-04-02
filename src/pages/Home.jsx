@@ -80,41 +80,61 @@ export default function Home() {
         <div className={s.heroGlow} />
         <div className={s.heroGlow2} />
         <div className={`${s.heroInner} ${s.container}`}>
-          <div className={s.heroContent}>
-            <div className={`${s.heroEyebrow} fade-up`}>
-              <div className={s.eyebrowDot} />
-              <span>India's purpose-media platform</span>
+          <div className={s.heroLayout}>
+            <div className={s.heroContent}>
+              <div className={`${s.heroEyebrow} fade-up`}>
+                <div className={s.eyebrowDot} />
+                <span>India's purpose-media platform</span>
+              </div>
+              <h1 className={`${s.heroH1} fade-up`} style={{ animationDelay: '0.1s' }}>
+                Your brand on<br /><em>a million hands.</em>
+              </h1>
+              <span className={`${s.heroH1Line2} fade-up`} style={{ animationDelay: '0.2s' }}>
+                With a cause.
+              </span>
+              <p className={`${s.heroSub} fade-up`} style={{ animationDelay: '0.3s' }}>
+                Sponsor branded tote bags distributed <strong>free to citizens</strong> across India.
+                Real impressions. Real communities. An ESG impact report included -
+                at <strong>80% lower cost</strong> than traditional outdoor advertising.
+              </p>
+              <div className={`${s.heroCtas} fade-up`} style={{ animationDelay: '0.44s' }}>
+                <button className={s.btnHeroPrimary} onClick={() => scrollTo('contact')}>
+                  Sponsor a campaign
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                <button className={s.btnHeroGhost} onClick={() => scrollTo('how')}>
+                  See how it works
+                </button>
+              </div>
+              <div className={`${s.heroStats} fade-up`} style={{ animationDelay: '0.6s' }}>
+                <HeroStat num="1.2M" accent="+" label="Bags distributed" />
+                <HeroStat num="800" accent="+" label="Cities reached" />
+                <HeroStat num="₹65M" accent="+" label="Ad value created" />
+                <HeroStat num="50K" accent="+" label="Brand ambassadors" />
+              </div>
             </div>
-            <h1 className={`${s.heroH1} fade-up`} style={{ animationDelay: '0.1s' }}>
-              Your brand on<br /><em>a million hands.</em>
-            </h1>
-            <span className={`${s.heroH1Line2} fade-up`} style={{ animationDelay: '0.2s' }}>
-              With a cause.
-            </span>
-            <p className={`${s.heroSub} fade-up`} style={{ animationDelay: '0.3s' }}>
-              Sponsor branded tote bags distributed <strong>free to citizens</strong> across India.
-              Real impressions. Real communities. An ESG impact report included —
-              at <strong>80% lower cost</strong> than traditional outdoor advertising.
-            </p>
-            <div className={`${s.heroCtas} fade-up`} style={{ animationDelay: '0.44s' }}>
-              <button className={s.btnHeroPrimary} onClick={() => scrollTo('contact')}>
-                Sponsor a campaign
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-              <button className={s.btnHeroGhost} onClick={() => scrollTo('how')}>
-                See how it works
-              </button>
-            </div>
-            <div className={`${s.heroStats} fade-up`} style={{ animationDelay: '0.6s' }}>
-              <HeroStat num="1.2M" accent="+" label="Bags distributed" />
-              <HeroStat num="800" accent="+" label="Cities reached" />
-              <HeroStat num="₹65M" accent="+" label="Ad value created" />
-              <HeroStat num="50K" accent="+" label="Brand ambassadors" />
+            <div className={`${s.heroVisualWrap} fade-up`} style={{ animationDelay: '0.35s' }}>
+              <div className={s.heroVisualCard} aria-label="Tote bag preview">
+                <div className={s.heroVisualInner}>
+                  <img
+                    className={`${s.heroVisualFace} ${s.heroVisualFront}`}
+                    src="/images/tote-front.webp"
+                    alt="ChangeBag tote bag front"
+                  />
+                  <img
+                    className={`${s.heroVisualFace} ${s.heroVisualBack}`}
+                    src="/images/tote-back.webp"
+                    alt="ChangeBag tote bag back"
+                  />
+                </div>
+              </div>
+              <p className={s.heroVisualHint}>Hover to flip and view the back design.</p>
             </div>
           </div>
         </div>
+      
       </section>
 
       <Ticker />

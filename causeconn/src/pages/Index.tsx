@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -31,6 +32,8 @@ interface Cause {
 
 const Index = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [featuredCauses, setFeaturedCauses] = useState<Cause[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,6 +160,14 @@ const Index = () => {
           console.error('Error copying to clipboard:', error);
         });
     }
+  };
+
+  const handleSponsorAction = (cause: Cause) => {
+    if (!user) {
+      navigate('/login', { state: { from: location } });
+      return;
+    }
+    navigate(`/sponsor/new?causeId=${cause._id}`);
   };
 
   return (
@@ -292,10 +303,10 @@ const Index = () => {
                       </div>
                       <div className="flex justify-between mt-2">
                         <span className="text-sm text-gray-500">
-                          ${(cause.currentAmount || 0).toLocaleString()} raised
+                          ₹{(cause.currentAmount || 0).toLocaleString()} raised
                         </span>
                         <span className="text-sm text-gray-500">
-                          ${cause.targetAmount.toLocaleString()} goal
+                          ₹{cause.targetAmount.toLocaleString()} goal
                         </span>
                       </div>
                     </div>
@@ -319,7 +330,7 @@ const Index = () => {
                       
                       {!isTargetAchieved(cause) && (
                         <Button 
-                          onClick={() => navigate(`/sponsor/new?causeId=${cause._id}`)} 
+                          onClick={() => handleSponsorAction(cause)} 
                           className="w-full bg-green-600 hover:bg-green-700 text-white"
                         >
                           Sponsor This Cause

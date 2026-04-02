@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,8 +14,9 @@ const LoginPage = () => {
   const location = useLocation();
   const { requestOtp, verifyOtp, completeRegistration, googleLogin: handleGoogleAuth } = useAuth();
   const { toast } = useToast();
-  
-  const from = location.state?.from?.pathname ? location.state.from.pathname + (location.state.from.search || '') : location.state?.from || null;
+  const [searchParams] = useSearchParams();
+  const redirectParam = searchParams.get('redirect');
+  const from = redirectParam || (location.state?.from?.pathname ? location.state.from.pathname + (location.state.from.search || '') : location.state?.from || null);
 
   // Step state: 1: Identifier, 2: OTP, 3: Name
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -129,7 +130,6 @@ const LoginPage = () => {
       <div className="min-h-screen bg-[#e8f5e9] flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-sm">
           <div className="mb-6 flex items-center justify-center gap-2 text-[32px] font-semibold text-[#6d8a35]">
-            <span className="text-2xl">🤲</span>
             <span className="italic text-[#5f7d2b]">Changebag</span>
           </div>
 

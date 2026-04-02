@@ -102,7 +102,7 @@ const WaitlistConfirmationPage = () => {
       <Button 
         variant="outline"
         className="w-full"
-        onClick={() => navigate('/dashboard/claimer')}
+        onClick={() => navigate('/dashboard/claimer?tab=waitlist')}
       >
         Manage Your Waitlists
       </Button>

@@ -558,45 +558,75 @@ const HomePage: FC = () => {
         <div className={s.heroGlow} />
         <div className={s.heroGlow2} />
         <div className={`${s.heroInner} ${s.container}`}>
-          <div className={s.heroContent}>
-            <div className={s.heroEyebrow}>
-              <div className={s.heroEyebrowDot} />
-              <span>India's purpose-media platform</span>
+          <div className={s.heroLayout}>
+            <div className={s.heroContent}>
+              <div className={s.heroEyebrow}>
+                <div className={s.heroEyebrowDot} />
+                <span>India's purpose-media platform</span>
+              </div>
+              <h1 className={s.heroH1}>Your brand on<br /><em>a million hands.</em></h1>
+              <span className={s.heroH1Line2}>With a cause.</span>
+              <p className={s.heroSub}>
+                Sponsor branded tote bags distributed <strong>free to citizens</strong> across India.
+                Real impressions. Real communities. An ESG impact report included -
+                at <strong>80% lower cost</strong> than traditional outdoor advertising.
+              </p>
+              <div className={s.heroCtas}>
+                <button className={s.btnHeroPrimary} onClick={() => navigate('/causes')} >
+                  Sponsor a campaign
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                <button className={s.btnHeroGhost} onClick={() => scrollTo('#how')}>
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2" />
+                    <path d="M8 5v4M8 10.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                  See how it works
+                </button>
+              </div>
+              <div className={s.heroStats}>
+                {[
+                  { num: '1.2M', accent: '+', label: 'Bags distributed' },
+                  { num: '800', accent: '+', label: 'Cities reached' },
+                  { num: '₹65M', accent: '+', label: 'Ad value created' },
+                  { num: '50K', accent: '+', label: 'Brand ambassadors' },
+                ].map((stat) => (
+                  <div key={stat.label} className={s.heroStat}>
+                    <div className={s.heroStatNum}>{stat.num}<span>{stat.accent}</span></div>
+                    <div className={s.heroStatLabel}>{stat.label}</div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <h1 className={s.heroH1}>Your brand on<br /><em>a million hands.</em></h1>
-            <span className={s.heroH1Line2}>With a cause.</span>
-            <p className={s.heroSub}>
-              Sponsor branded tote bags distributed <strong>free to citizens</strong> across India.
-              Real impressions. Real communities. An ESG impact report included —
-              at <strong>80% lower cost</strong> than traditional outdoor advertising.
-            </p>
-            <div className={s.heroCtas}>
-              <button className={s.btnHeroPrimary} onClick={() => navigate('/causes')} >
-                Sponsor a campaign
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </button>
-              <button className={s.btnHeroGhost} onClick={() => scrollTo('#how')}>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                  <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.2" />
-                  <path d="M8 5v4M8 10.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-                See how it works
-              </button>
-            </div>
-            <div className={s.heroStats}>
-              {[
-                { num: '1.2M', accent: '+', label: 'Bags distributed' },
-                { num: '800', accent: '+', label: 'Cities reached' },
-                { num: '₹65M', accent: '+', label: 'Ad value created' },
-                { num: '50K', accent: '+', label: 'Brand ambassadors' },
-              ].map((stat) => (
-                <div key={stat.label} className={s.heroStat}>
-                  <div className={s.heroStatNum}>{stat.num}<span>{stat.accent}</span></div>
-                  <div className={s.heroStatLabel}>{stat.label}</div>
+            <div className={`${s.heroVisualWrap} ${s.reveal}`} style={{ transitionDelay: '0.2s' }}>
+              <div className={`${s.heroBadge} ${s.heroBadgeTopRight}`}>
+                <span className={s.heroBadgeDot} />
+                Your brand on every bag
+              </div>
+              <div className={`${s.heroBadge} ${s.heroBadgeLeftMid}`}>
+                <span className={s.heroBadgeDot} />
+                Sustainable fabric
+              </div>
+              <div className={`${s.heroBadge} ${s.heroBadgeBottomRight}`}>
+                <span className={s.heroBadgeDot} />
+                Free to citizens · ESG certified
+              </div>
+              <div className={s.heroVisualCard} aria-label="Tote bag preview">
+                <div className={s.heroVisualInner}>
+                  <img
+                    className={s.heroVisualFace}
+                    src="/images/tote-front.webp"
+                    alt="ChangeBag tote bag front"
+                  />
+                  <img
+                    className={`${s.heroVisualFace} ${s.heroVisualBack}`}
+                    src="/images/tote-back.webp"
+                    alt="ChangeBag tote bag back"
+                  />
                 </div>
-              ))}
+              </div>
             </div>
           </div>
         </div>
