@@ -50,7 +50,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
       const data = await response.json();
       if (response.ok) {
-        return { success: true, message: data.message };
+        const debugOtp = data?.debugOtp;
+        const message =
+          !import.meta.env.PROD && debugOtp
+            ? `${data.message} (Dev OTP: ${debugOtp})`
+            : data.message;
+        return { success: true, message };
       }
       return { success: false, message: data.message };
     } catch (error) {

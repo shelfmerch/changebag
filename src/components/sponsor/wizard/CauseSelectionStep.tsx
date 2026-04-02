@@ -11,8 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { CheckCircle, Loader2 } from 'lucide-react';
-import axios from 'axios';
-import config from '@/config';
+import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/components/ui/use-toast';
 
 interface CauseSelectionStepProps {
@@ -48,6 +47,7 @@ const CauseSelectionStep = ({
   setEmailStatus,
   setPhoneStatus
 }: CauseSelectionStepProps) => {
+  const { requestOtp, verifyOtp } = useAuth();
   const [emailOtp, setEmailOtp] = useState('');
   const [phoneOtp, setPhoneOtp] = useState('');
   const [isSendingEmail, setIsSendingEmail] = useState(false);
@@ -84,18 +84,17 @@ const CauseSelectionStep = ({
     }
 
     try {
-      if (type === 'email') {
-        setIsSendingEmail(true);
-        const response = await axios.post(`${config.apiUrl}/auth/request-otp`, { identifier });
-        if (response.data.success) {
-          setShowEmailOtp(true);
-          toast({ title: "OTP Sent", description: `Code sent to ${identifier}` });
-        }
+      if (type === 'email') setIsSendingEmail(true);
+      else setIsSendingPhone(true);
+
+      const result = await requestOtp(identifier);
+      if (result.success) {
+        if (type === 'email') setShowEmailOtp(true);
+        else setShowPhoneOtp(true);
+
+        toast({ title: "OTP Sent", description: result.message || `Code sent to ${identifier}` });
       } else {
-        setIsSendingPhone(true);
-        // For test purposes as requested
-        setShowPhoneOtp(true);
-        toast({ title: "Test OTP", description: "Use 123456 as the test OTP for phone verification." });
+        toast({ title: "Error", description: result.message || "Failed to send OTP", variant: "destructive" });
       }
     } catch (error: any) {
       toast({ title: "Error", description: "Failed to send OTP", variant: "destructive" });
@@ -112,19 +111,8 @@ const CauseSelectionStep = ({
     if (!otpValue || otpValue.length < 4) return;
 
     try {
-      if (type === 'sms' && otpValue === '123456') {
-        setPhoneStatus('verified');
-        setShowPhoneOtp(false);
-        toast({ title: "Verified", description: "Phone verified successfully using test OTP!" });
-        return;
-      }
-
-      const response = await axios.post(`${config.apiUrl}/auth/verify-otp`, {
-        identifier,
-        otp: otpValue
-      });
-
-      if (response.data.success) {
+      const result = await verifyOtp(identifier, otpValue);
+      if (result.success) {
         if (type === 'email') {
           setEmailStatus('verified');
           setShowEmailOtp(false);
@@ -132,7 +120,9 @@ const CauseSelectionStep = ({
           setPhoneStatus('verified');
           setShowPhoneOtp(false);
         }
-        toast({ title: "Verified", description: `${type === 'email' ? 'Email' : 'Phone'} verified successfully!` });
+        toast({ title: "Verified", description: result.message || `${type === 'email' ? 'Email' : 'Phone'} verified successfully!` });
+      } else {
+        toast({ title: "Error", description: result.message || "Invalid OTP", variant: "destructive" });
       }
     } catch (error: any) {
       toast({ title: "Error", description: "Invalid OTP", variant: "destructive" });
@@ -293,7 +283,7 @@ const CauseSelectionStep = ({
           </div>
           {showPhoneOtp && (
             <div className="mt-2 flex flex-col gap-2 p-3 bg-blue-50 rounded-md border border-blue-100">
-              <p className="text-[10px] text-blue-700 font-bold uppercase tracking-wider">Enter Phone OTP (Test: 123456)</p>
+              <p className="text-[10px] text-blue-700 font-bold uppercase tracking-wider">Enter Phone OTP</p>
               <div className="flex gap-2">
                 <Input
                   placeholder="123456"

@@ -66,6 +66,8 @@ router.post('/request-otp', async (req: Request, res: Response) => {
     const otp = generateOTP();
     const hashedOTP = hashOTP(otp);
     const expiryTime = generateExpiryTime();
+    const origin = req.headers.origin || '';
+    const isLocalRequest = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin);
 
     if (isEmail) {
       await OTPVerification.create({
@@ -86,7 +88,11 @@ router.post('/request-otp', async (req: Request, res: Response) => {
       await sendVerificationSMS(formattedPhone, otp);
     }
 
-    res.json({ success: true, message: `OTP sent to ${identifier}` });
+    res.json({ 
+      success: true, 
+      message: `OTP sent to ${identifier}`,
+      ...(isLocalRequest ? { debugOtp: otp } : {})
+    });
   } catch (error) {
     console.error('Request OTP error:', error);
     res.status(500).json({ message: 'Error sending OTP' });
