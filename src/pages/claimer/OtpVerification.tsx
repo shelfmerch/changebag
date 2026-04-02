@@ -9,42 +9,7 @@ import { toast } from '@/components/ui/use-toast';
 import { Smartphone, Loader2, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import config from '@/config';
-
-// MSG91 API Configuration (for backend use only)
-const MSG91_AUTH_KEY = "383885AfgFYzqZxpF634ff2e2P1";
-const MSG91_SENDER_ID = "SHELF"; // Your sender ID
-const MSG91_OTP_TEMPLATE_ID = "670e1516d6fc055ee21c5e42"; // Your template ID
-
-// Standardize phone number format (same as backend)
-const standardizePhoneNumber = (phone: string): string => {
-  let cleaned = phone.replace(/[^\d+]/g, '');
-  
-  if (cleaned.startsWith('+')) {
-    cleaned = cleaned.substring(1);
-  }
-  
-  if (cleaned.startsWith('0')) {
-    cleaned = cleaned.substring(1);
-  }
-  
-  if (cleaned.startsWith('91') && cleaned.length > 10) {
-    cleaned = cleaned.substring(2);
-  }
-  
-  if (cleaned.length === 10) {
-    return `+91${cleaned}`;
-  }
-  
-  if (cleaned.length === 12 && cleaned.startsWith('91')) {
-    return `+${cleaned}`;
-  }
-  
-  if (cleaned.length === 13 && cleaned.startsWith('91')) {
-    return `+${cleaned}`;
-  }
-  
-  return `+91${cleaned}`;
-};
+import { normalizeIndianMobile } from '@/utils/phoneUtils';
 
 const OtpVerificationPage = () => {
   const navigate = useNavigate();
@@ -103,11 +68,19 @@ const OtpVerificationPage = () => {
     setIsLoading(true);
     
     try {
-      const formattedPhone = standardizePhoneNumber(phone);
+      const formattedPhone = normalizeIndianMobile(phone);
+      if (!formattedPhone) {
+        toast({
+          title: 'Invalid number',
+          description: 'Enter a valid 10-digit Indian mobile number.',
+          variant: 'destructive',
+        });
+        return;
+      }
       console.log('=== SENDING OTP ===');
       console.log('Original phone:', phone);
       console.log('Standardized phone:', formattedPhone);
-      
+
       const response = await axios.post(`${config.apiUrl}/otp/send`, {
         phone: formattedPhone,
         method: 'sms'
@@ -155,7 +128,15 @@ const OtpVerificationPage = () => {
     setIsLoading(true);
     
     try {
-      const formattedPhone = standardizePhoneNumber(phone);
+      const formattedPhone = normalizeIndianMobile(phone);
+      if (!formattedPhone) {
+        toast({
+          title: 'Invalid number',
+          description: 'Enter a valid 10-digit Indian mobile number.',
+          variant: 'destructive',
+        });
+        return;
+      }
       console.log('=== VERIFYING OTP ===');
       console.log('Original phone:', phone);
       console.log('Standardized phone:', formattedPhone);

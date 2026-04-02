@@ -4,49 +4,11 @@ import { generateOTP, hashOTP, generateExpiryTime } from '../utils/otpUtils';
 import { sendVerificationEmail } from '../services/emailService';
 import { sendVerificationSMS } from '../services/smsService';
 import axios from 'axios';
+import { normalizeIndianMobile } from '../utils/phoneUtils';
 
 const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY;
 const MSG91_SENDER_ID = process.env.MSG91_SENDER_ID;
 const MSG91_OTP_TEMPLATE_ID = process.env.MSG91_OTP_TEMPLATE_ID;
-
-// Standardize phone number format
-const standardizePhoneNumber = (phone: string): string => {
-  // Remove all non-digit characters except +
-  let cleaned = phone.replace(/[^\d+]/g, '');
-  
-  // Remove leading + if present
-  if (cleaned.startsWith('+')) {
-    cleaned = cleaned.substring(1);
-  }
-  
-  // Remove leading 0 if present
-  if (cleaned.startsWith('0')) {
-    cleaned = cleaned.substring(1);
-  }
-  
-  // Remove leading 91 if present (to avoid double country code)
-  if (cleaned.startsWith('91') && cleaned.length > 10) {
-    cleaned = cleaned.substring(2);
-  }
-  
-  // Ensure it's a 10-digit number
-  if (cleaned.length === 10) {
-    return `+91${cleaned}`;
-  }
-  
-  // If it's already 12 digits with country code, add +
-  if (cleaned.length === 12 && cleaned.startsWith('91')) {
-    return `+${cleaned}`;
-  }
-  
-  // If it's already 13 digits with +91, return as is
-  if (cleaned.length === 13 && cleaned.startsWith('91')) {
-    return `+${cleaned}`;
-  }
-  
-  // Default: assume it's a 10-digit number and add +91
-  return `+91${cleaned}`;
-};
 
 // Send OTP for email or SMS verification
 export const sendOTP = async (req: Request, res: Response) => {
@@ -127,8 +89,10 @@ export const sendOTP = async (req: Request, res: Response) => {
         return res.status(400).json({ message: 'Phone number is required for SMS verification' });
       }
 
-      // Format phone number consistently
-      const formattedPhone = standardizePhoneNumber(phone);
+      const formattedPhone = normalizeIndianMobile(phone);
+      if (!formattedPhone) {
+        return res.status(400).json({ message: 'Enter a valid 10-digit Indian mobile number.' });
+      }
       console.log('=== SMS OTP PROCESSING ===');
       console.log('Original phone:', phone);
       console.log('Formatted phone for SMS OTP:', formattedPhone);
@@ -163,7 +127,6 @@ export const sendOTP = async (req: Request, res: Response) => {
       console.log('OTP expiry time:', expiryTime);
 
       console.log('Attempting to save OTP record...');
-      // Save OTP details with formatted phone
       const otpRecord = await OTPVerification.create({
         phone: formattedPhone,
         otp: hashedOTP,
@@ -173,8 +136,18 @@ export const sendOTP = async (req: Request, res: Response) => {
       console.log('SMS OTP record created successfully:', otpRecord);
 
       console.log('Attempting to send SMS...');
-      // Send SMS with OTP
-      await sendVerificationSMS(formattedPhone, otp);
+      try {
+        await sendVerificationSMS(formattedPhone, otp);
+      } catch (smsErr) {
+        await OTPVerification.deleteOne({ _id: otpRecord._id });
+        console.error('[otp] SMS send failed:', smsErr);
+        return res.status(503).json({
+          message:
+            smsErr instanceof Error
+              ? smsErr.message
+              : 'Could not send SMS. Please try again later.',
+        });
+      }
       console.log('Verification SMS sent with OTP');
 
       console.log('=== SMS OTP PROCESSING COMPLETE ===');
@@ -289,8 +262,10 @@ export const verifyOTP = async (req: Request, res: Response) => {
         return res.status(400).json({ message: 'Phone number and OTP are required' });
       }
 
-      // Format phone number consistently (same as when sending)
-      const formattedPhone = standardizePhoneNumber(phone);
+      const formattedPhone = normalizeIndianMobile(phone);
+      if (!formattedPhone) {
+        return res.status(400).json({ message: 'Enter a valid 10-digit Indian mobile number.' });
+      }
       console.log('Formatted phone for SMS OTP verification:', formattedPhone);
 
       // Find all OTP records for this phone
@@ -386,8 +361,10 @@ export const debugOTPRecords = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Phone parameter is required' });
     }
 
-    // Use the same standardization function
-    const formattedPhone = standardizePhoneNumber(phone.toString());
+    const formattedPhone = normalizeIndianMobile(phone.toString());
+    if (!formattedPhone) {
+      return res.status(400).json({ message: 'Enter a valid 10-digit Indian mobile number.' });
+    }
     console.log('Debug: Original phone:', phone, 'Standardized:', formattedPhone);
     
     const records = await OTPVerification.find({ phone: formattedPhone }).sort({ createdAt: -1 });

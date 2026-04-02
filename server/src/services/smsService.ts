@@ -1,260 +1,184 @@
 import axios from 'axios';
+import { formatMobileForMSG91 } from '../utils/phoneUtils';
 
-// MSG91 Configuration
 const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY?.trim() || '';
 const MSG91_SENDER_ID = process.env.MSG91_SENDER_ID?.trim() || '';
 const MSG91_OTP_TEMPLATE_ID = process.env.MSG91_OTP_TEMPLATE_ID?.trim() || '';
 
-const formatMSG91Mobile = (phone: string): string => {
-  let digits = phone.replace(/\D/g, '');
+/**
+ * Console OTP fallback: enabled in development/test only unless overridden.
+ * Production: failures throw unless ALLOW_SMS_OTP_FALLBACK=true (not recommended).
+ */
+function allowSmsFallback(): boolean {
+  const explicit = process.env.ALLOW_SMS_OTP_FALLBACK;
+  if (explicit === 'true') return true;
+  if (explicit === 'false') return false;
+  return process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
+}
 
-  if (digits.startsWith('0')) {
-    digits = digits.substring(1);
+function msg91PayloadMessage(data: unknown): string {
+  if (data && typeof data === 'object' && 'message' in data && typeof (data as { message: unknown }).message === 'string') {
+    return (data as { message: string }).message;
   }
+  return JSON.stringify(data);
+}
 
-  if (digits.length === 10) {
-    return `91${digits}`;
-  }
-
-  if (digits.length > 10 && digits.startsWith('91')) {
-    return digits;
-  }
-
-  return digits;
-};
+function isMsg91Success(data: unknown): boolean {
+  if (!data || typeof data !== 'object') return false;
+  const d = data as Record<string, unknown>;
+  if (d.type === 'error' || d.status === 'error' || d.message === 'error') return false;
+  return d.type === 'success' || d.status === 'success';
+}
 
 /**
- * Sends an SMS with OTP using MSG91 REST API
- * @param phone Phone number to send to (should include country code)
- * @param otp OTP code to send
- * @returns MSG91 response object
+ * Sends an SMS with OTP using MSG91 REST API.
+ * @throws Error when delivery fails and fallback is not allowed
  */
-export const sendVerificationSMS = async (phone: string, otp: string) => {
-  try {
-    // Check if MSG91 is properly configured
-    if (!MSG91_AUTH_KEY || !MSG91_SENDER_ID) {
-      console.warn('MSG91 configuration is missing. Using fallback mode - OTP will be logged instead of sent.');
-      console.log('=== FALLBACK SMS MODE ===');
-      console.log(`OTP for ${phone}: ${otp}`);
-      console.log('Please check the server console for the OTP code.');
-      console.log('=== END FALLBACK MODE ===');
-      
-      return {
-        success: true,
-        messageId: 'fallback-' + Date.now(),
-        status: 'logged'
-      };
+export const sendVerificationSMS = async (phoneE164India: string, otp: string): Promise<void> => {
+  const logOtpFallback = (reason: string) => {
+    console.warn(`[SMS] ${reason} — OTP fallback (console only)`);
+    console.log(`[SMS] OTP for ${phoneE164India}: ${otp}`);
+  };
+
+  if (!MSG91_AUTH_KEY || !MSG91_SENDER_ID) {
+    const msg = 'MSG91 is not configured (MSG91_AUTH_KEY / MSG91_SENDER_ID missing)';
+    if (allowSmsFallback()) {
+      logOtpFallback(msg);
+      return;
     }
+    throw new Error(`${msg}. Set credentials or ALLOW_SMS_OTP_FALLBACK=true for local testing only.`);
+  }
 
-    // MSG91 expects the number in international format without a leading +
-    const formattedPhone = formatMSG91Mobile(phone);
-    
-    console.log('=== MSG91 SMS DEBUG ===');
-    console.log('Sender ID:', MSG91_SENDER_ID);
-    console.log('Template ID:', MSG91_OTP_TEMPLATE_ID);
-    console.log('Phone:', formattedPhone);
-    
-    // Method 1: Using MSG91 Flow API (recommended)
-    const flowUrl = 'https://api.msg91.com/api/v5/flow/';
-    const flowPayload = {
-      flow_id: MSG91_OTP_TEMPLATE_ID,
-      sender: MSG91_SENDER_ID,
-      recipients: [
-        {
-          mobiles: formattedPhone,
-          VAR1: otp,
-          var1: otp,
-          OTP: otp,
-          otp: otp
-        }
-      ]
-    };
+  const formattedPhone = formatMobileForMSG91(phoneE164India);
+  if (!/^91[6-9]\d{9}$/.test(formattedPhone)) {
+    throw new Error(`Invalid mobile for MSG91: ${formattedPhone} (expected 91 + 10-digit Indian number)`);
+  }
 
-    console.log('Sending SMS via MSG91 Flow API:', {
-      phone: formattedPhone,
-      template_id: MSG91_OTP_TEMPLATE_ID,
-      sender_id: MSG91_SENDER_ID,
-      otp: otp,
-      payload: flowPayload
-    });
+  if (!MSG91_OTP_TEMPLATE_ID) {
+    const msg = 'MSG91_OTP_TEMPLATE_ID (Flow / template id) is not set';
+    if (allowSmsFallback()) {
+      logOtpFallback(msg);
+      return;
+    }
+    throw new Error(msg);
+  }
 
-    try {
-      const response = await axios.post(flowUrl, flowPayload, {
-        headers: {
-          'Content-Type': 'application/json',
-          'authkey': MSG91_AUTH_KEY
-        }
-      });
+  console.log('[SMS] MSG91 send', {
+    sender: MSG91_SENDER_ID,
+    templateOrFlowId: MSG91_OTP_TEMPLATE_ID,
+    mobileSuffix: formattedPhone.slice(-4),
+  });
 
-      console.log('MSG91 Flow API response:', response.data);
-      console.log('MSG91 Flow API status:', response.status);
-
-      if (response.data.type === 'success') {
-        console.log('✅ MSG91 Flow API SUCCESS');
-        return {
-          success: true,
-          messageId: response.data.request_id,
-          status: 'sent'
-        };
-      } else {
-        console.log('❌ MSG91 Flow API FAILED:', response.data);
-        throw new Error(`MSG91 Flow Error: ${response.data.message || 'Unknown error'}`);
-      }
-    } catch (flowError: any) {
-      console.error('MSG91 Flow API failed, trying legacy API:', flowError.message);
-      console.error('Flow API Error Details:', flowError.response?.data);
-      
-      // Method 2: Fallback to the official SendOTP API with the same OTP
-      const legacyUrl = 'https://api.msg91.com/api/sendotp.php';
-      const legacyParams = new URLSearchParams({
-        authkey: MSG91_AUTH_KEY,
-        mobile: formattedPhone,
-        message: `Your verification code is ${otp}. Valid for 10 minutes.`,
-        sender: MSG91_SENDER_ID,
+  const flowUrl = 'https://api.msg91.com/api/v5/flow/';
+  const flowPayload = {
+    flow_id: MSG91_OTP_TEMPLATE_ID,
+    sender: MSG91_SENDER_ID,
+    recipients: [
+      {
+        mobiles: formattedPhone,
+        VAR1: otp,
+        var1: otp,
+        OTP: otp,
         otp: otp,
-        otp_expiry: '10'
-      });
+      },
+    ],
+  };
 
-      console.log('Trying MSG91 SendOTP API');
+  const tryFlow = async (): Promise<void> => {
+    const response = await axios.post(flowUrl, flowPayload, {
+      headers: {
+        'Content-Type': 'application/json',
+        authkey: MSG91_AUTH_KEY,
+      },
+    });
+    const data = response.data;
+    console.log('[SMS] MSG91 Flow response', { status: response.status, data });
+    if (isMsg91Success(data)) return;
+    throw new Error(`MSG91 Flow: ${msg91PayloadMessage(data)}`);
+  };
 
-      try {
-        const legacyResponse = await axios.get(`${legacyUrl}?${legacyParams.toString()}`);
+  const tryLegacySendOtp = async (): Promise<void> => {
+    const legacyUrl = 'https://api.msg91.com/api/sendotp.php';
+    const legacyParams = new URLSearchParams({
+      authkey: MSG91_AUTH_KEY,
+      mobile: formattedPhone,
+      message: `Your verification code is ${otp}. Valid for 10 minutes.`,
+      sender: MSG91_SENDER_ID,
+      otp,
+      otp_expiry: '10',
+    });
+    const legacyResponse = await axios.get(`${legacyUrl}?${legacyParams.toString()}`);
+    const data = legacyResponse.data;
+    console.log('[SMS] MSG91 sendotp.php response', data);
+    if (isMsg91Success(data)) return;
+    throw new Error(`MSG91 sendotp: ${msg91PayloadMessage(data)}`);
+  };
 
-        console.log('MSG91 Legacy API response:', legacyResponse.data);
-        console.log('MSG91 Legacy API status:', legacyResponse.status);
-
-        if (legacyResponse.data.type === 'success') {
-          console.log('✅ MSG91 Legacy API SUCCESS');
-          return {
-            success: true,
-            messageId: legacyResponse.data.request_id,
-            status: 'sent'
-          };
-        } else {
-          console.log('❌ MSG91 Legacy API FAILED:', legacyResponse.data);
-          throw new Error(`MSG91 Legacy Error: ${legacyResponse.data.message || 'Unknown error'}`);
-        }
-      } catch (legacyError: any) {
-        console.error('Both MSG91 APIs failed. Trying without sender ID...');
-        console.error('Legacy API Error Details:', legacyError.response?.data);
-        
-        // Method 3: Try without sender ID (fallback)
-        try {
-          const noSenderParams = new URLSearchParams({
-            authkey: MSG91_AUTH_KEY,
-            mobile: formattedPhone,
-            message: `Your verification code is ${otp}. Valid for 10 minutes.`,
-            otp: otp,
-            otp_expiry: '10'
-          });
-
-          console.log('Trying MSG91 without sender ID');
-
-          const noSenderResponse = await axios.get(`${legacyUrl}?${noSenderParams.toString()}`);
-
-          console.log('MSG91 No Sender ID response:', noSenderResponse.data);
-
-          if (noSenderResponse.data.type === 'success') {
-            console.log('✅ MSG91 No Sender ID SUCCESS');
-            return {
-              success: true,
-              messageId: noSenderResponse.data.request_id,
-              status: 'sent'
-            };
-          } else {
-            throw new Error(`MSG91 No Sender Error: ${noSenderResponse.data.message || 'Unknown error'}`);
-          }
-        } catch (noSenderError: any) {
-          console.error('All MSG91 methods failed. Falling back to console logging.');
-          console.error('No Sender Error Details:', noSenderError.response?.data);
-          
-          // Final fallback: log the OTP
-          console.log('=== FINAL FALLBACK - OTP LOGGED ===');
-          console.log(`OTP for ${formattedPhone}: ${otp}`);
-          console.log('Please check the server console for the OTP code.');
-          console.log('=== END FALLBACK ===');
-          
-          return {
-            success: true,
-            messageId: 'fallback-' + Date.now(),
-            status: 'logged'
-          };
-        }
-      }
-    }
-  } catch (error: any) {
-    console.error('Error sending SMS via MSG91:', error);
-    
-    if (error.response) {
-      console.error('MSG91 Error Response:', error.response.data);
-      console.error('MSG91 Error Status:', error.response.status);
-    }
-    
-    // Final fallback: log the OTP
-    console.log('=== ERROR FALLBACK - OTP LOGGED ===');
-    console.log(`OTP for ${phone}: ${otp}`);
-    console.log('Please check the server console for the OTP code.');
-    console.log('=== END FALLBACK ===');
-    
-    return {
-      success: true,
-      messageId: 'fallback-' + Date.now(),
-      status: 'logged'
-    };
+  let lastError: Error | null = null;
+  try {
+    await tryFlow();
+    return;
+  } catch (e: unknown) {
+    const err = e as { message?: string; response?: { data?: unknown } };
+    console.error('[SMS] Flow API failed:', err.message, err.response?.data);
+    lastError = err instanceof Error ? err : new Error(String(e));
   }
+
+  try {
+    await tryLegacySendOtp();
+    return;
+  } catch (e: unknown) {
+    const err = e as { message?: string; response?: { data?: unknown } };
+    console.error('[SMS] Legacy sendotp failed:', err.message, err.response?.data);
+    lastError = err instanceof Error ? err : new Error(String(e));
+  }
+
+  const detail = lastError?.message || 'Unknown MSG91 error';
+  if (allowSmsFallback()) {
+    logOtpFallback(`All MSG91 methods failed: ${detail}`);
+    return;
+  }
+
+  throw new Error(
+    `SMS could not be sent (${detail}). Check MSG91 account (credits, DLT template, sender ID), sandbox allowlist, and MSG91_OTP_TEMPLATE_ID.`
+  );
 };
 
-/**
- * Verify OTP using MSG91 API (if needed)
- * @param phone Phone number
- * @param otp OTP to verify
- * @returns Verification result
- */
 export const verifyOTPWithMSG91 = async (phone: string, otp: string) => {
   try {
     const formattedPhone = phone.startsWith('+') ? phone : `+91${phone}`;
-    
+
     const url = 'https://control.msg91.com/api/v5/otp/verify';
     const payload = {
       authkey: MSG91_AUTH_KEY,
       mobile: formattedPhone.replace('+', ''),
-      otp: otp
+      otp,
     };
 
     const response = await axios.post(url, payload, {
       headers: {
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     });
 
     console.log('MSG91 OTP verification response:', response.data);
 
     return {
       success: response.data.type === 'success',
-      message: response.data.message
+      message: response.data.message,
     };
-  } catch (error: any) {
-    console.error('Error verifying OTP with MSG91:', error);
-    throw new Error(`OTP verification failed: ${error.message}`);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error('Error verifying OTP with MSG91:', err);
+    throw new Error(`OTP verification failed: ${err.message}`);
   }
 };
 
-/**
- * Legacy function for backward compatibility
- */
 export const sendSMS = async (phone: string, otp: string) => {
   return sendVerificationSMS(phone, otp);
 };
 
-/**
- * Verifies OTP (this is handled by the OTP controller, not the SMS service)
- * @param phone Phone number to verify
- * @param otp OTP code to verify
- * @returns Boolean indicating success
- */
 export const verifyOTP = async (phone: string, otp: string): Promise<boolean> => {
-  // This function is kept for backward compatibility
-  // Actual verification is handled in the OTP controller
   console.log(`[SMS] OTP verification request for ${phone}: ${otp}`);
   return true;
 };
