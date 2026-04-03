@@ -152,7 +152,57 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
     otpRecord.verified = true;
     await otpRecord.save();
 
-    // Check if user exists
+    // Phone OTP + logged-in user: attach phone to the current account. Do not resolve by
+    // phone alone — another user may exist with the same number (e.g. phone-only signup
+    // with @changebag.local), which would swap the session and overwrite the email in the UI.
+    let tokenUserId: string | null = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const bearer = authHeader.slice(7);
+        const decoded = jwt.verify(bearer, JWT_SECRET) as { userId?: string };
+        if (decoded.userId) tokenUserId = String(decoded.userId);
+      } catch {
+        // Invalid/expired token — fall through to unauthenticated lookup
+      }
+    }
+
+    if (!isEmail && phoneNorm && tokenUserId) {
+      const sessionUser = await User.findById(tokenUserId);
+      if (!sessionUser) {
+        return res.status(401).json({ message: 'Invalid session' });
+      }
+      const otherWithPhone = await User.findOne({
+        phone: phoneNorm,
+        _id: { $ne: sessionUser._id },
+      });
+      if (otherWithPhone) {
+        return res.status(409).json({
+          message: 'This phone number is already registered to another account.',
+        });
+      }
+      sessionUser.phone = phoneNorm;
+      if (!sessionUser.phoneVerified) sessionUser.phoneVerified = true;
+      await sessionUser.save();
+
+      const token = generateAndSetTokens(sessionUser, res);
+      res.json({
+        success: true,
+        token,
+        user: {
+          id: sessionUser._id,
+          email: sessionUser.email,
+          role: sessionUser.role,
+          name: sessionUser.name,
+          emailVerified: sessionUser.emailVerified,
+          phoneVerified: sessionUser.phoneVerified,
+          phone: sessionUser.phone,
+        },
+      });
+      return;
+    }
+
+    // Check if user exists (email OTP or unauthenticated phone login)
     const userQuery = isEmail ? { email: identifier.toLowerCase() } : { phone: phoneNorm! };
     let user = await User.findOne(userQuery);
 
@@ -181,7 +231,8 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
         role: user.role,
         name: user.name,
         emailVerified: user.emailVerified,
-        phoneVerified: user.phoneVerified
+        phoneVerified: user.phoneVerified,
+        phone: user.phone,
       }
     });
   } catch (error) {
