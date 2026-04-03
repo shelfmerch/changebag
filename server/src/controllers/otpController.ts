@@ -13,25 +13,12 @@ const MSG91_OTP_TEMPLATE_ID = process.env.MSG91_OTP_TEMPLATE_ID;
 // Send OTP for email or SMS verification
 export const sendOTP = async (req: Request, res: Response) => {
   try {
-    const { email, phone, method = 'sms' } = req.body; // TEMPORARILY DEFAULT TO SMS
+    const { email, phone, method } = req.body;
     console.log('=== SEND OTP REQUEST RECEIVED ===');
     console.log('Request body:', req.body);
     console.log('Parsed data:', { email, phone, method });
 
-    // TEMPORARILY DISABLE EMAIL VERIFICATION
-    // TODO: Restore email verification by removing this check
     if (method === 'email') {
-      console.log('Email verification temporarily disabled');
-      return res.status(400).json({ 
-        message: 'Email verification is temporarily disabled. Please use SMS verification.',
-        method: 'sms'
-      });
-    }
-
-    if (method === 'email') {
-      // TEMPORARILY COMMENTED OUT: Email verification logic
-      // TODO: Restore this section when email verification is re-enabled
-      /*
       if (!email) {
         console.log('Email is missing in request');
         return res.status(400).json({ message: 'Email is required for email verification' });
@@ -82,7 +69,6 @@ export const sendOTP = async (req: Request, res: Response) => {
         email,
         method: 'email'
       });
-      */
     } else if (method === 'sms') {
       if (!phone) {
         console.log('Phone is missing in request');
@@ -151,23 +137,10 @@ export const sendOTP = async (req: Request, res: Response) => {
 // Verify OTP for email or SMS
 export const verifyOTP = async (req: Request, res: Response) => {
   try {
-    const { email, phone, otp, method = 'sms' } = req.body; // TEMPORARILY DEFAULT TO SMS
+    const { email, phone, otp, method } = req.body;
     console.log('Verifying OTP:', { email, phone, otp, method });
 
-    // TEMPORARILY DISABLE EMAIL VERIFICATION
-    // TODO: Restore email verification by removing this check
     if (method === 'email') {
-      console.log('Email verification temporarily disabled');
-      return res.status(400).json({ 
-        message: 'Email verification is temporarily disabled. Please use SMS verification.',
-        method: 'sms'
-      });
-    }
-
-    if (method === 'email') {
-      // TEMPORARILY COMMENTED OUT: Email verification logic
-      // TODO: Restore this section when email verification is re-enabled
-      /*
       if (!email || !otp) {
         console.log('Missing email or OTP');
         return res.status(400).json({ message: 'Email and OTP are required' });
@@ -236,7 +209,6 @@ export const verifyOTP = async (req: Request, res: Response) => {
       
       // This should not be reached, but just in case
       return res.status(400).json({ message: 'Invalid or expired verification code' });
-      */
     } else if (method === 'sms') {
       if (!phone || !otp) {
         console.log('Missing phone or OTP');

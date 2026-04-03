@@ -9,6 +9,7 @@ import axios from 'axios';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Form,
   FormControl,
@@ -58,9 +59,9 @@ const qrClaimFormSchema = z.object({
   fullName: z.string()
     .min(2, 'Full name is required')
     .regex(/^[a-zA-Z\s']+$/, 'Full name can only contain letters, spaces, and apostrophes'),
-  email: z.string().email('Valid email is required'),
-  phone: z.string()
-    .regex(/^\d{10}$/, 'Phone number must be exactly 10 digits'),
+  contact: z.string()
+    .min(1, 'Email or Phone is required')
+    .refine(val => val.includes('@') ? z.string().email().safeParse(val).success : /^\d{10}$/.test(val), 'Must be a valid email or a 10-digit phone number'),
   location: z.string().min(1, 'Please select your current location'),
 });
 
@@ -99,6 +100,22 @@ const ClaimFormPage = () => {
 
   // Detect if this is a QR code claim
   const isQrCodeClaim = source === 'qr' || document.referrer.includes('qr') || window.location.search.includes('qr');
+
+  // Inline OTP states for QR claims
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [isContactVerified, setIsContactVerified] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [countdown]);
   
   // Fetch cause data
   const { data: cause, isLoading, error } = useQuery<Cause>({
@@ -138,8 +155,7 @@ const ClaimFormPage = () => {
     mode: 'onChange',
     defaultValues: {
       fullName: '',
-      email: '',
-      phone: '',
+      contact: '',
       location: '',
     },
   });
@@ -150,8 +166,7 @@ const ClaimFormPage = () => {
       if (isQrCodeClaim) {
         qrForm.reset({
           fullName: user.name || '',
-          email: user.email || '',
-          phone: user.phone || '',
+          contact: user.email || user.phone || '',
           location: '',
         });
       } else {
@@ -175,12 +190,16 @@ const ClaimFormPage = () => {
   useEffect(() => {
     if (user) {
       (form as any).setValue('fullName', user.name || '');
-      (form as any).setValue('email', user.email || '');
-      if (user.phone) {
-        (form as any).setValue('phone', user.phone);
+      if (isQrCodeClaim) {
+        (form as any).setValue('contact', user.email || user.phone || '');
+      } else {
+        (form as any).setValue('email', user.email || '');
+        if (user.phone) {
+          (form as any).setValue('phone', user.phone);
+        }
       }
     }
-  }, [user, form]);
+  }, [user, form, isQrCodeClaim]);
   
   // Check if user has already claimed a tote for this cause when they enter their email
   const checkExistingClaim = async (email: string) => {
@@ -205,6 +224,47 @@ const ClaimFormPage = () => {
     }
   };
   
+  const handleSendOtp = async () => {
+    const contactVal = form.getValues('contact');
+    if (!contactVal || !!form.getFieldState('contact').error) return;
+    setIsSendingOtp(true);
+    try {
+      const isEmail = contactVal.includes('@');
+      const method = isEmail ? 'email' : 'sms';
+      const payload = isEmail ? { email: contactVal, method } : { phone: contactVal, method };
+      await axios.post(`${config.apiUrl}/otp/send`, payload);
+      setIsOtpSent(true);
+      setCountdown(60);
+      toast({ title: 'OTP Sent', description: `Verification code sent to ${contactVal}` });
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.response?.data?.message || 'Failed to send OTP', variant: 'destructive' });
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otp.length !== 6) return;
+    const contactVal = form.getValues('contact');
+    setIsVerifyingOtp(true);
+    try {
+      const isEmail = contactVal.includes('@');
+      const method = isEmail ? 'email' : 'sms';
+      const payload = {
+        [isEmail ? 'email' : 'phone']: contactVal,
+        otp,
+        method
+      };
+      await axios.post(`${config.apiUrl}/otp/verify`, payload);
+      setIsContactVerified(true);
+      setIsOtpSent(false); // hide otp fields
+      toast({ title: 'Verified!', description: 'Contact details verified successfully.' });
+    } catch (e: any) {
+      toast({ title: 'Invalid OTP', description: e.response?.data?.message || 'Code verification failed', variant: 'destructive' });
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
   
   // Check for waitlist data on mount
   useEffect(() => {
@@ -215,8 +275,7 @@ const ClaimFormPage = () => {
           const data = JSON.parse(waitlistData);
           if (isQrCodeClaim) {
             qrForm.setValue('fullName', data.fullName || '');
-            qrForm.setValue('email', data.email || '');
-            qrForm.setValue('phone', data.phone || '');
+            qrForm.setValue('contact', data.email || data.phone || '');
             // qrForm.setValue('purpose', data.purpose || '');
           } else {
             regularForm.setValue('fullName', data.fullName || '');
@@ -265,12 +324,20 @@ const ClaimFormPage = () => {
   const submitClaim = async (data: any) => {
     try {
       const qrCodeScanned = source === 'qr' || document.referrer.includes('qr') || window.location.search.includes('qr');
+      let emailVal = data.email;
+      let phoneVal = data.phone;
+      if (isQrCodeClaim) {
+        const isEmail = data.contact.includes('@');
+        emailVal = isEmail ? data.contact : '';
+        phoneVal = isEmail ? '' : data.contact;
+      }
+
       const claimDataToSubmit = {
         causeId: id,
         causeTitle: cause?.title,
         fullName: data.fullName,
-        email: data.email,
-        phone: data.phone,
+        email: emailVal,
+        phone: phoneVal,
         // purpose: data.purpose || (isQrCodeClaim ? 'QR Claim' : 'Direct Claim'),
         address: isQrCodeClaim ? 'QR Code Claim - No Shipping Required' : data.address,
         zipCode: isQrCodeClaim ? '00000' : data.zipCode,
@@ -351,9 +418,8 @@ const ClaimFormPage = () => {
     return (
       <Layout>
         <div className="container mx-auto px-4 py-8 text-center">
-          <h1 className="text-2xl font-bold text-yellow-600 mb-4">Cause Not Available</h1>
-          <p className="text-gray-600 mb-4">This cause is not currently available for claims.</p>
-          <p className="text-sm text-gray-500 mb-4">Status: {cause.status}, Has sponsorship: {hasSponsorship ? 'Yes' : 'No'}</p>
+          <h1 className="text-2xl font-bold text-yellow-600 mb-4">Claim Not Yet Available</h1>
+          <p className="text-gray-600 mb-4">Claims for this cause will soon be available.</p>
           <Button variant="outline" onClick={() => navigate('/causes')}>View Other Causes</Button>
         </div>
       </Layout>
@@ -362,7 +428,21 @@ const ClaimFormPage = () => {
 
   // Get available totes from the cause data
   const availableTotes = cause.availableTotes || 0;
+  const totalTotes = cause.totalTotes || 0;
+  
   if (availableTotes <= 0) {
+    if (totalTotes === 0) {
+      return (
+        <Layout>
+          <div className="container mx-auto px-4 py-8 text-center">
+            <h1 className="text-2xl font-bold text-yellow-600 mb-4">Claim Not Yet Available</h1>
+            <p className="text-gray-600 mb-4">Claims for this cause will soon be available.</p>
+            <Button variant="outline" onClick={() => navigate('/causes')}>View Other Causes</Button>
+          </div>
+        </Layout>
+      );
+    }
+    
     return (
       <Layout>
         <div className="container mx-auto px-4 py-8 text-center">
@@ -435,21 +515,25 @@ const ClaimFormPage = () => {
                           )}
                         />
                         
-                        <FormField
-                          control={form.control as any}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Email Address</FormLabel>
-                              <FormControl>
-                                <Input placeholder="john@example.com" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={form.control as any}
+                        {!isQrCodeClaim && (
+                          <FormField
+                            control={form.control as any}
+                            name="email"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Email Address</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="john@example.com" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+                        
+                        {!isQrCodeClaim && (
+                          <FormField
+                            control={form.control as any}
                             name="phone"
                             render={({ field }) => (
                               <FormItem>
@@ -472,6 +556,79 @@ const ClaimFormPage = () => {
                               </FormItem>
                             )}
                           />
+                        )}
+
+                        {isQrCodeClaim && (
+                          <FormField
+                            control={form.control as any}
+                            name="contact"
+                            render={({ field }) => (
+                              <FormItem className="md:col-span-2 lg:col-span-1">
+                                <FormLabel>Email or Phone Number</FormLabel>
+                                <div className="flex flex-col gap-2">
+                                  <div className="flex gap-2">
+                                    <FormControl>
+                                      <Input 
+                                        placeholder="john@example.com or 9876543210" 
+                                        {...field} 
+                                        disabled={isContactVerified}
+                                        onChange={(e) => {
+                                          if (isContactVerified) setIsContactVerified(false);
+                                          field.onChange(e);
+                                        }}
+                                      />
+                                    </FormControl>
+                                    {!isContactVerified ? (
+                                      <Button 
+                                        type="button" 
+                                        variant="outline"
+                                        onClick={handleSendOtp}
+                                        disabled={isSendingOtp || !field.value || !!form.formState.errors.contact}
+                                      >
+                                        {isSendingOtp ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
+                                      </Button>
+                                    ) : (
+                                      <div className="flex items-center text-green-600 bg-green-50 px-3 py-2 rounded-md border border-green-200">
+                                        <CheckCircle className="h-4 w-4 mr-1" /> Confirmed
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+
+                        {isQrCodeClaim && isOtpSent && !isContactVerified && (
+                          <div className="bg-blue-50 p-4 rounded-md space-y-3 col-span-1 md:col-span-2 shadow-sm border border-blue-100 mt-2">
+                            <Label className="text-blue-900">Enter Verification Code</Label>
+                            <div className="flex gap-3 max-w-sm">
+                              <Input 
+                                placeholder="6-digit OTP" 
+                                maxLength={6} 
+                                value={otp}
+                                className="tracking-widest font-mono text-center"
+                                onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              />
+                              <Button 
+                                type="button"
+                                className="bg-blue-600 hover:bg-blue-700"
+                                onClick={handleVerifyOtp}
+                                disabled={otp.length !== 6 || isVerifyingOtp}
+                              >
+                                {isVerifyingOtp ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm'}
+                              </Button>
+                            </div>
+                            <div className="flex items-center gap-2 pt-1 text-sm">
+                              {countdown > 0 ? (
+                                <span className="text-gray-500">Resend code in {countdown}s</span>
+                              ) : (
+                                <Button type="button" variant="link" className="p-0 h-auto text-blue-600" onClick={handleSendOtp}>Resend OTP</Button>
+                              )}
+                            </div>
+                          </div>
+                        )}
 
                         {isQrCodeClaim && (
                           <FormField
@@ -483,16 +640,8 @@ const ClaimFormPage = () => {
                               
                               if (cause?.sponsorships) {
                                 cause.sponsorships.forEach((s: any) => {
-                                  if (s.status === 'approved') {
-                                    if (s.selectedCities && Array.isArray(s.selectedCities)) {
-                                      s.selectedCities.forEach((city: string) => locations.add(city));
-                                    }
-                                    if (s.distributionLocations && Array.isArray(s.distributionLocations)) {
-                                      s.distributionLocations.forEach((loc: any) => {
-                                        const locName = loc.location || loc.name;
-                                        if (locName) locations.add(locName);
-                                      });
-                                    }
+                                  if (s.selectedCities && Array.isArray(s.selectedCities)) {
+                                    s.selectedCities.forEach((city: string) => locations.add(city));
                                   }
                                 });
                               }
@@ -507,11 +656,11 @@ const ClaimFormPage = () => {
                                   </FormLabel>
                                   <Select 
                                     onValueChange={field.onChange} 
-                                    defaultValue={field.value}
+                                    value={field.value}
                                   >
                                     <FormControl>
                                       <SelectTrigger className="bg-white">
-                                        <SelectValue placeholder="Select the city/area you are scanning from" />
+                                        <SelectValue placeholder="Select the city you are scanning from" />
                                       </SelectTrigger>
                                     </FormControl>
                                     <SelectContent>
@@ -527,7 +676,7 @@ const ClaimFormPage = () => {
                                     </SelectContent>
                                   </Select>
                                   <FormDescription>
-                                    Please select the location where you are currently scanning this QR code.
+                                    Please select the city where you are currently scanning this QR code.
                                   </FormDescription>
                                   <FormMessage />
                                 </FormItem>
@@ -614,7 +763,7 @@ const ClaimFormPage = () => {
                           type="submit" 
                           size="lg"
                           className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white"
-                          disabled={form.formState.isSubmitting}
+                          disabled={form.formState.isSubmitting || (isQrCodeClaim && !isContactVerified)}
                         >
                           {form.formState.isSubmitting ? (
                             <>

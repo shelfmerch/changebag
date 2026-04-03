@@ -45,8 +45,8 @@ const TICKER_ITEMS = [
 ];
 
 const BAGS: Record<BagKey, BagConfig> = {
-  indigo:  { bag: '#dde5f5', shade: '#b8c8e8', dark: '#8aa0cc', accent: '#1a3c8f', l1: 'AQUA', l2: 'CORP', m1: 'Save Water,', m2: 'Save Life', ngo: 'ChangeBag × Water Aid India' },
-  forest:  { bag: '#d8ead0', shade: '#aecca0', dark: '#88aa78', accent: '#0d3d22', l1: 'ECO', l2: 'BRAND', m1: 'Plant More', m2: 'Trees Today', ngo: 'ChangeBag × Green Mission India' },
+  indigo: { bag: '#dde5f5', shade: '#b8c8e8', dark: '#8aa0cc', accent: '#1a3c8f', l1: 'AQUA', l2: 'CORP', m1: 'Save Water,', m2: 'Save Life', ngo: 'ChangeBag × Water Aid India' },
+  forest: { bag: '#d8ead0', shade: '#aecca0', dark: '#88aa78', accent: '#0d3d22', l1: 'ECO', l2: 'BRAND', m1: 'Plant More', m2: 'Trees Today', ngo: 'ChangeBag × Green Mission India' },
   saffron: { bag: '#fdebd8', shade: '#f5cfa8', dark: '#e0a870', accent: '#c45000', l1: 'VIDYA', l2: 'CO.', m1: 'Every Child', m2: 'Deserves School', ngo: 'ChangeBag × Pratham Foundation' },
 };
 
@@ -568,7 +568,7 @@ const HomePage: FC = () => {
               <h1 className={s.heroH1}>Your brand on<br /><em>a million hands.</em></h1>
               <span className={s.heroH1Line2}>With a cause.</span>
               <p className={s.heroSub}>
-                Sponsor branded tote bags distributed <strong>free to citizens</strong> across India.
+                The world's <strong>first sustainable purpose media platform</strong> - Sponsoring branded tote bags distributed <strong>free to citizens</strong> across India.
                 Real impressions. Real communities. An ESG impact report included -
                 at <strong>80% lower cost</strong> than traditional outdoor advertising.
               </p>
