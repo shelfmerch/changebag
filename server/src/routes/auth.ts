@@ -71,6 +71,7 @@ router.post('/request-otp', async (req: Request, res: Response) => {
       if (!formattedPhone) {
         return res.status(400).json({ message: 'Enter a valid 10-digit Indian mobile number.' });
       }
+      await OTPVerification.deleteMany({ phone: formattedPhone, type: 'sms' });
       const otpRecord = await OTPVerification.create({
         phone: formattedPhone,
         otp: hashedOTP,
@@ -115,16 +116,36 @@ router.post('/verify-otp', async (req: Request, res: Response) => {
     if (!isEmail && !phoneNorm) {
       return res.status(400).json({ message: 'Enter a valid 10-digit Indian mobile number.' });
     }
-    const query = isEmail
-      ? { email: identifier.toLowerCase(), type: 'email' }
-      : { phone: phoneNorm!, type: 'sms' };
+    let otpRecord = null as InstanceType<typeof OTPVerification> | null;
 
-    const otpRecord = await OTPVerification.findOne({
-      ...query,
-      otp: hashedOTP,
-      expiresAt: { $gt: new Date() },
-      verified: false
-    });
+    if (isEmail) {
+      otpRecord = await OTPVerification.findOne({
+        email: identifier.toLowerCase(),
+        type: 'email',
+        otp: hashedOTP,
+        expiresAt: { $gt: new Date() },
+        verified: false
+      });
+    } else {
+      const latest = await OTPVerification.findOne({
+        phone: phoneNorm!,
+        type: 'sms'
+      }).sort({ createdAt: -1 });
+
+      if (!latest) {
+        return res.status(400).json({ message: 'Invalid or expired OTP' });
+      }
+      if (latest.verified) {
+        return res.status(400).json({ message: 'Verification code has already been used' });
+      }
+      if (latest.expiresAt <= new Date()) {
+        return res.status(400).json({ message: 'Invalid or expired OTP' });
+      }
+      if (latest.otp !== hashedOTP) {
+        return res.status(400).json({ message: 'Invalid or expired OTP' });
+      }
+      otpRecord = latest;
+    }
 
     if (!otpRecord) return res.status(400).json({ message: 'Invalid or expired OTP' });
 
