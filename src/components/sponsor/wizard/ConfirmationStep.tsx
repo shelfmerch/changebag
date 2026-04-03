@@ -20,7 +20,7 @@ interface ConfirmationStepProps {
     unitPrice: number;
     totalAmount: number;
     logoUrl: string;
-    message: string;
+    brandWebsiteUrl?: string;
     distributionType?: 'online' | 'physical';
     distributionPoints?: string[];
     distributionDate?: Date;

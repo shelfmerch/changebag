@@ -28,7 +28,9 @@ interface Sponsorship {
   unitPrice: number;
   totalAmount: number;
   logoUrl: string;
-  qrCodeUrl?: string; // Add QR code URL field
+  qrCodeUrl?: string;
+  brandQrCodeUrl?: string;
+  brandWebsiteUrl?: string;
   toteDetails?: {
     totalAmount?: number;
   };
@@ -158,6 +160,7 @@ const CampaignCard = ({ sponsorship, onApprove, onReject, onEndCampaign }: {
   onReject: (id: string) => void;
   onEndCampaign: (id: string) => void;
 }) => {
+  const { toast } = useToast();
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
 
   const toggleSection = (sectionId: string) => {
@@ -353,57 +356,119 @@ const CampaignCard = ({ sponsorship, onApprove, onReject, onEndCampaign }: {
           onToggle={() => toggleSection('qr')}
         >
           <div className="space-y-4">
-            {sponsorship.qrCodeUrl ? (
-              <div className="flex flex-col items-center space-y-4">
-                <div className="bg-white p-4 rounded-lg shadow-sm border">
-                  <img 
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(sponsorship.qrCodeUrl)}`}
-                    alt="QR Code"
-                    className="w-48 h-48"
-                  />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-gray-600 mb-2">
-                    This QR code links to the cause page for claiming totes.
-                  </p>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => {
-                        const link = document.createElement('a');
-                        link.href = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(sponsorship.qrCodeUrl)}`;
-                        link.download = `qr-code-${sponsorship.organizationName.replace(/\s+/g, '-')}.png`;
-                        link.click();
-                      }}
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-1"
-                    >
-                      <Download className="h-4 w-4" />
-                      Download QR Code
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        navigator.clipboard.writeText(sponsorship.qrCodeUrl);
-                        toast({
-                          title: "QR Code URL Copied",
-                          description: "The QR code URL has been copied to clipboard.",
-                        });
-                      }}
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-1"
-                    >
-                      <Copy className="h-4 w-4" />
-                      Copy URL
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-sm text-gray-500">No QR code available for this sponsorship.</p>
-              </div>
+            {isPending && (
+              <p className="text-sm text-gray-600">
+                After you approve, two URLs are stored: <strong>claim a tote</strong> (same format as sponsor signup:
+                <code className="mx-1 text-xs bg-gray-100 px-1 rounded">/claim/…?ref=sponsor-form</code>)
+                and, if provided, <strong>brand website</strong> for a second QR.
+                {sponsorship.brandWebsiteUrl?.trim() ? (
+                  <span className="block mt-2 font-medium text-gray-800">
+                    Brand URL on file: {sponsorship.brandWebsiteUrl.trim()}
+                  </span>
+                ) : null}
+              </p>
             )}
+            {!isPending && (sponsorship.qrCodeUrl || sponsorship.brandQrCodeUrl?.trim()) ? (
+              <div className="grid gap-8 sm:grid-cols-2">
+                {sponsorship.qrCodeUrl ? (
+                  <div className="flex flex-col items-center space-y-3">
+                    <p className="text-sm font-medium text-gray-800">Claim a tote</p>
+                    <div className="bg-white p-4 rounded-lg shadow-sm border">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(sponsorship.qrCodeUrl)}`}
+                        alt="Claim tote QR"
+                        className="w-48 h-48"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 text-center max-w-[220px]">
+                      Opens the claim flow for this cause (<code className="text-[10px]">ref=sponsor-form</code>).
+                    </p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      <Button
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(sponsorship.qrCodeUrl!)}`;
+                          link.download = `claim-tote-qr-${sponsorship.organizationName.replace(/\s+/g, '-')}.png`;
+                          link.click();
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-1"
+                      >
+                        <Download className="h-4 w-4" />
+                        Download
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          navigator.clipboard.writeText(sponsorship.qrCodeUrl!);
+                          toast({
+                            title: "Copied",
+                            description: "Claim URL copied to clipboard.",
+                          });
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-1"
+                      >
+                        <Copy className="h-4 w-4" />
+                        Copy URL
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+                {sponsorship.brandQrCodeUrl?.trim() ? (
+                  <div className="flex flex-col items-center space-y-3">
+                    <p className="text-sm font-medium text-gray-800">Brand website</p>
+                    <div className="bg-white p-4 rounded-lg shadow-sm border">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(sponsorship.brandQrCodeUrl.trim())}`}
+                        alt="Brand QR"
+                        className="w-48 h-48"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 text-center max-w-[220px] break-all">
+                      {sponsorship.brandQrCodeUrl.trim()}
+                    </p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      <Button
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(sponsorship.brandQrCodeUrl!.trim())}`;
+                          link.download = `brand-qr-${sponsorship.organizationName.replace(/\s+/g, '-')}.png`;
+                          link.click();
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-1"
+                      >
+                        <Download className="h-4 w-4" />
+                        Download
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          navigator.clipboard.writeText(sponsorship.brandQrCodeUrl!.trim());
+                          toast({
+                            title: "Copied",
+                            description: "Brand URL copied to clipboard.",
+                          });
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-1"
+                      >
+                        <Copy className="h-4 w-4" />
+                        Copy URL
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            {!isPending && !sponsorship.qrCodeUrl && !sponsorship.brandQrCodeUrl?.trim() ? (
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-500">No QR codes available for this sponsorship.</p>
+              </div>
+            ) : null}
           </div>
         </ExpandableSection>
       </div>

@@ -155,6 +155,10 @@ interface Sponsorship {
   _id: string;
   status: string;
   logoStatus?: string;
+  /** Claim-a-tote URL (ref=sponsor-form), set on admin approval. */
+  qrCodeUrl?: string;
+  /** Brand site URL for second QR, set on admin approval when provided. */
+  brandQrCodeUrl?: string;
   cause: Cause;
   organizationName: string;
   contactName: string;
@@ -351,35 +355,51 @@ interface Sponsorship {
                             <span>QR Code</span>
                           </Button>
                         </SheetTrigger>
-                        <SheetContent className="sm:max-w-md">
+                        <SheetContent className="sm:max-w-lg overflow-y-auto">
                           <SheetHeader className="text-left">
-                            <SheetTitle className="text-2xl font-serif">Impact Gateway</SheetTitle>
+                            <SheetTitle className="text-2xl font-serif">Your QR codes</SheetTitle>
                             <SheetDescription>
-                              This custom QR code is your direct link to positive change. It's printed on every tote you've sponsored.
+                              After campaign approval: claim tote (same link as at signup) and optional brand site, for printing on bags.
                             </SheetDescription>
                           </SheetHeader>
-                          <div className="flex flex-col items-center justify-center py-10">
-                            <div className="relative group cursor-pointer">
-                              <div className="absolute -inset-1 bg-gradient-to-r from-green-600 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-                              <div className="relative bg-white p-6 rounded-xl shadow-xl">
-                                <img 
-                                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.origin}/claim/${sponsorship.cause?._id || 'unknown'}?source=qr&ref=sponsor-dashboard`)}`}
-                                  alt="Impact QR Code"
-                                  className="w-56 h-56"
-                                />
+                          <div className="flex flex-col gap-10 py-8">
+                            <div className="flex flex-col items-center">
+                              <p className="text-sm font-semibold text-gray-800 mb-3">Claim a tote</p>
+                              <div className="relative group cursor-pointer">
+                                <div className="absolute -inset-1 bg-gradient-to-r from-green-600 to-blue-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
+                                <div className="relative bg-white p-6 rounded-xl shadow-xl">
+                                  <img
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
+                                      (sponsorship.qrCodeUrl && sponsorship.qrCodeUrl.trim()) ||
+                                        `${window.location.origin}/claim/${sponsorship.cause?._id || 'unknown'}?source=qr&ref=sponsor-form&sponsor=${encodeURIComponent(sponsorship.organizationName)}`
+                                    )}`}
+                                    alt="Claim tote QR"
+                                    className="w-56 h-56"
+                                  />
+                                </div>
                               </div>
-                            </div>
-                            <div className="mt-8 text-center space-y-4">
-                              <p className="text-sm text-gray-500 max-w-xs mx-auto italic">
-                                "When scanned, this code leads directly to your cause's story and claim page."
+                              <p className="text-sm text-gray-500 max-w-xs mx-auto text-center mt-4 italic">
+                                Scan to open the claim page for this cause.
                               </p>
-                              <div className="flex gap-2 justify-center">
-                                <Button className="bg-green-600 hover:bg-green-700 rounded-full px-6 font-bold">
-                                  <Download className="h-4 w-4 mr-2" />
-                                  Download QR
-                                </Button>
-                              </div>
                             </div>
+                            {sponsorship.brandQrCodeUrl?.trim() ? (
+                              <div className="flex flex-col items-center border-t pt-8">
+                                <p className="text-sm font-semibold text-gray-800 mb-3">Brand website</p>
+                                <div className="relative group cursor-pointer">
+                                  <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
+                                  <div className="relative bg-white p-6 rounded-xl shadow-xl">
+                                    <img
+                                      src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(sponsorship.brandQrCodeUrl.trim())}`}
+                                      alt="Brand website QR"
+                                      className="w-56 h-56"
+                                    />
+                                  </div>
+                                </div>
+                                <p className="text-xs text-gray-500 max-w-xs mx-auto text-center mt-3 break-all">
+                                  {sponsorship.brandQrCodeUrl.trim()}
+                                </p>
+                              </div>
+                            ) : null}
                           </div>
                         </SheetContent>
                       </Sheet>

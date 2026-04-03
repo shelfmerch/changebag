@@ -4,6 +4,38 @@ import Cause from '../models/Cause';
 import mongoose from 'mongoose';
 import User, { UserRole } from '../models/User';
 
+/** Normalize sponsor brand URL for QR; only http(s). */
+function normalizeBrandUrlForQr(raw: string | undefined): string | null {
+  const t = (raw || '').trim();
+  if (!t) return null;
+  const withScheme = /^https?:\/\//i.test(t) ? t : `https://${t}`;
+  try {
+    const u = new URL(withScheme);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    return u.href;
+  } catch {
+    return null;
+  }
+}
+
+/** Same pattern as SponsorFormContainer: claim flow + ref=sponsor-form. */
+function buildClaimToteQrUrl(
+  causeRef: unknown,
+  organizationName: string,
+  frontendBase: string
+): string {
+  const base = frontendBase.replace(/\/$/, '');
+  let causeId: string;
+  if (causeRef && typeof causeRef === 'object' && causeRef !== null && '_id' in causeRef) {
+    causeId = String((causeRef as { _id: mongoose.Types.ObjectId })._id);
+  } else if (causeRef) {
+    causeId = String(causeRef);
+  } else {
+    causeId = 'unknown';
+  }
+  return `${base}/claim/${causeId}?source=qr&ref=sponsor-form&sponsor=${encodeURIComponent(organizationName)}`;
+}
+
 export const createSponsorship = async (req: Request, res: Response): Promise<void> => {
   try {
     console.log('Received sponsorship request body:', JSON.stringify(req.body, null, 2));
@@ -90,6 +122,7 @@ export const createSponsorship = async (req: Request, res: Response): Promise<vo
     // Set default values for optional fields
     const defaultValues = {
       message: req.body.message || '',
+      brandWebsiteUrl: (req.body.brandWebsiteUrl && String(req.body.brandWebsiteUrl).trim()) || '',
       logoPosition: req.body.logoPosition || {
         x: 0,
         y: 0,
@@ -196,7 +229,7 @@ export const getPendingSponsorships = async (req: Request, res: Response): Promi
     console.log('About to query pending sponsorships...');
     const sponsorships = await Sponsorship.find({ status: SponsorshipStatus.PENDING })
       .populate('cause', 'title') // Populate cause with just the title field
-      .select('_id status logoStatus cause organizationName contactName email phone toteQuantity unitPrice totalAmount logoUrl logoPosition qrCodeUrl toteDetails selectedCities distributionType distributionLocations distributionStartDate distributionEndDate documents createdAt updatedAt isOnline')
+      .select('_id status logoStatus cause organizationName contactName email phone toteQuantity unitPrice totalAmount logoUrl logoPosition qrCodeUrl brandQrCodeUrl brandWebsiteUrl toteDetails selectedCities distributionType distributionLocations distributionStartDate distributionEndDate documents createdAt updatedAt isOnline')
       .sort({ createdAt: -1 });
     
     console.log('Found pending sponsorships:', sponsorships.length);
@@ -233,7 +266,7 @@ export const getApprovedSponsorships = async (req: Request, res: Response): Prom
     
     const sponsorships = await Sponsorship.find({ status: SponsorshipStatus.APPROVED })
       .populate('cause', 'title description category targetAmount currentAmount imageUrl status')
-      .select('_id status logoStatus cause organizationName contactName email phone toteQuantity unitPrice totalAmount logoUrl qrCodeUrl toteDetails selectedCities distributionType distributionLocations distributionStartDate distributionEndDate documents createdAt updatedAt isOnline')
+      .select('_id status logoStatus cause organizationName contactName email phone toteQuantity unitPrice totalAmount logoUrl qrCodeUrl brandQrCodeUrl brandWebsiteUrl toteDetails selectedCities distributionType distributionLocations distributionStartDate distributionEndDate documents createdAt updatedAt isOnline')
       .sort({ createdAt: -1 });
     
     console.log('Found approved sponsorships:', sponsorships.length);
@@ -277,6 +310,16 @@ export const approveSponsorship = async (req: Request, res: Response): Promise<v
     sponsorship.status = SponsorshipStatus.APPROVED;
     sponsorship.approvedBy = req.user?._id;
     sponsorship.approvedAt = new Date();
+
+    const frontendBase = process.env.FRONTEND_URL || 'http://localhost:8085';
+    sponsorship.qrCodeUrl = buildClaimToteQrUrl(
+      sponsorship.cause,
+      sponsorship.organizationName,
+      frontendBase
+    );
+    const brandQr = normalizeBrandUrlForQr(sponsorship.brandWebsiteUrl);
+    sponsorship.brandQrCodeUrl = brandQr || '';
+
     await sponsorship.save();
     
     // Update user role to SPONSOR if they are currently a regular USER or CLAIMER
@@ -752,6 +795,7 @@ export const testFrontendData = async (req: Request, res: Response): Promise<voi
     // Set default values
     const defaultValues = {
       message: processedData.message || '',
+      brandWebsiteUrl: (processedData.brandWebsiteUrl && String(processedData.brandWebsiteUrl).trim()) || '',
       logoPosition: processedData.logoPosition || {
         x: 0,
         y: 0,

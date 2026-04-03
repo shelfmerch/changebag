@@ -44,7 +44,7 @@ const OnboardingWizard = ({
     distributionType: 'online' as 'online' | 'physical', // Default to online distribution
     numberOfTotes: 50,
     logoUrl: '',
-    message: '',
+    brandWebsiteUrl: '',
     distributionPoints: {} as {
       [city: string]: {
         malls: { name: string; totes: number; selected: boolean }[];

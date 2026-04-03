@@ -52,8 +52,13 @@ export interface ISponsorship extends Document {
   totalAmount: number;
   logoUrl: string;
   mockupUrl?: string;
-  qrCodeUrl?: string; // Add QR code URL field
+  /** Claim-a-tote page URL encoded on the tote QR (same format as sponsor signup). */
+  qrCodeUrl?: string;
+  /** Normalized brand site URL for a second QR when provided. */
+  brandQrCodeUrl?: string;
   message: string;
+  /** Public URL for the sponsor's brand (optional). */
+  brandWebsiteUrl?: string;
   distributionType: DistributionType;
   selectedCities: string[];
   distributionStartDate: Date;
@@ -142,7 +147,16 @@ const sponsorshipSchema = new Schema<ISponsorship>(
       type: String,
       required: false
     },
+    brandQrCodeUrl: {
+      type: String,
+      required: false,
+      default: ''
+    },
     message: {
+      type: String,
+      default: ''
+    },
+    brandWebsiteUrl: {
       type: String,
       default: ''
     },

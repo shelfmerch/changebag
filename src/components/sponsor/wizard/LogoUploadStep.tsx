@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Upload, ZoomIn, ZoomOut, RotateCw, RotateCcw, Info } from 'lucide-react';
 import {
@@ -53,7 +52,7 @@ function clientToCanvas(
 interface LogoUploadStepProps {
   formData: {
     logoUrl: string;
-    message: string;
+    brandWebsiteUrl?: string;
     selectedCause?: string;
     causeImageUrl?: string;
     logoPosition?: LogoPosition;
@@ -66,7 +65,7 @@ interface LogoUploadStepProps {
   };
   updateFormData: (data: Partial<{
     logoUrl: string;
-    message: string;
+    brandWebsiteUrl?: string;
     logoPosition?: LogoPosition;
     causeImagePosition?: {
       x: number;
@@ -588,9 +587,8 @@ const LogoUploadStep = ({ formData, updateFormData, validationError }: LogoUploa
     });
   };
 
-  // Handle message change
-  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    updateFormData({ message: e.target.value });
+  const handleBrandWebsiteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    updateFormData({ brandWebsiteUrl: e.target.value });
   };
 
   // User logo manipulation functions
@@ -899,24 +897,25 @@ const LogoUploadStep = ({ formData, updateFormData, validationError }: LogoUploa
           </Card>
         </div>
 
-        {/* Message Section */}
+        {/* Brand website (optional) */}
         <Card>
           <CardHeader>
-            <CardTitle>Sponsorship Message</CardTitle>
+            <CardTitle>Brand website</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              <Label htmlFor="message">Your message (optional)</Label>
-              <Textarea
-                id="imageUrl"
+              <Label htmlFor="brandWebsiteUrl">Brand website (optional)</Label>
+              <Input
+                id="brandWebsiteUrl"
                 type="url"
-                placeholder="https://example.com/image.jpg"
-                value={formData.imageUrl}
-                onChange={handleMessageChange}
-                rows={3}
+                inputMode="url"
+                autoComplete="url"
+                placeholder="https://www.yourbrand.com"
+                value={formData.brandWebsiteUrl ?? ''}
+                onChange={handleBrandWebsiteChange}
               />
               <p className="text-sm text-gray-500">
-                This message will be displayed with your logo on the tote bag.
+                Link to your organization&apos;s website. We store it with your sponsorship for reference and display where applicable.
               </p>
             </div>
           </CardContent>
