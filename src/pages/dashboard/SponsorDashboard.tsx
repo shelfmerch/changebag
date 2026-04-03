@@ -404,7 +404,7 @@ interface Sponsorship {
                         </SheetContent>
                       </Sheet>
                       
-                      <Button 
+                      {/* <Button 
                         variant="ghost" 
                         size="sm"
                         className="rounded-full px-5 gap-1.5 text-gray-500 hover:text-purple-700 hover:bg-purple-50 transition-all"
@@ -412,7 +412,7 @@ interface Sponsorship {
                       >
                         <Download className="h-4 w-4" />
                         <span>Claims CSV</span>
-                      </Button>
+                      </Button> */}
                     </div>
                   </div>
                 </div>

@@ -647,6 +647,10 @@ const ClaimFormPage = () => {
                                 });
                               }
                               
+                              if ((cause as any)?.sponsor?.selectedCities) {
+                                (cause as any).sponsor.selectedCities.forEach((city: string) => locations.add(city));
+                              }
+                              
                               const locationOptions = Array.from(locations).sort();
                               
                               return (
@@ -848,7 +852,7 @@ const ClaimFormPage = () => {
                   {isQrCodeClaim ? (
                     <div className="bg-green-50 border border-green-100 rounded p-4 text-sm text-green-800">
                       <p>
-                        <span className="font-semibold">QR Code Claim:</span> After phone verification, your claim will be automatically verified and you can collect your tote immediately.
+                        <span className="font-semibold">QR Code Claim:</span> After email or phone verification, your claim will be automatically verified and you can collect your tote immediately.
                       </p>
                     </div>
                   ) : (

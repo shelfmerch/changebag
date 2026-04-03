@@ -94,19 +94,19 @@ const claimSchema = new Schema<IClaim>(
     // },
     address: {
       type: String,
-      required: true
+      required: false
     },
     city: {
       type: String,
-      required: true
+      required: false
     },
     state: {
       type: String,
-      required: true
+      required: false
     },
     zipCode: {
       type: String,
-      required: true
+      required: false
     },
     status: {
       type: String,
