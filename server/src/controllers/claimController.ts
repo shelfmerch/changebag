@@ -96,8 +96,7 @@ export const createClaim = async (req: Request, res: Response): Promise<void> =>
       state,
       zipCode,
       status: initialStatus,
-      emailVerified: email && email.trim() !== '' && qrCodeScanned ? true : emailVerified,
-      phoneVerified: phone && phone.trim() !== '' && qrCodeScanned ? true : false,
+      emailVerified: false, // Will be verified after OTP for QR claims
       source: claimSource,
       referrerUrl: referrerUrl || (req.apiPartner ? req.apiPartner.businessName : undefined),
       qrCodeScanned,

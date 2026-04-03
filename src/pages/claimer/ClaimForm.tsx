@@ -98,24 +98,10 @@ const ClaimFormPage = () => {
   const source = searchParams.get('source') || 'direct';
   const referrerUrl = searchParams.get('ref') || document.referrer;
 
+  
   // Detect if this is a QR code claim
   const isQrCodeClaim = source === 'qr' || document.referrer.includes('qr') || window.location.search.includes('qr');
 
-  // Inline OTP states for QR claims
-  const [isOtpSent, setIsOtpSent] = useState(false);
-  const [otp, setOtp] = useState('');
-  const [isContactVerified, setIsContactVerified] = useState(false);
-  const [isSendingOtp, setIsSendingOtp] = useState(false);
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-  const [countdown, setCountdown] = useState(0);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (countdown > 0) {
-      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-    }
-    return () => clearTimeout(timer);
-  }, [countdown]);
   
   // Fetch cause data
   const { data: cause, isLoading, error } = useQuery<Cause>({
@@ -223,48 +209,7 @@ const ClaimFormPage = () => {
       return false;
     }
   };
-  
-  const handleSendOtp = async () => {
-    const contactVal = form.getValues('contact');
-    if (!contactVal || !!form.getFieldState('contact').error) return;
-    setIsSendingOtp(true);
-    try {
-      const isEmail = contactVal.includes('@');
-      const method = isEmail ? 'email' : 'sms';
-      const payload = isEmail ? { email: contactVal, method } : { phone: contactVal, method };
-      await axios.post(`${config.apiUrl}/otp/send`, payload);
-      setIsOtpSent(true);
-      setCountdown(60);
-      toast({ title: 'OTP Sent', description: `Verification code sent to ${contactVal}` });
-    } catch (e: any) {
-      toast({ title: 'Error', description: e.response?.data?.message || 'Failed to send OTP', variant: 'destructive' });
-    } finally {
-      setIsSendingOtp(false);
-    }
-  };
 
-  const handleVerifyOtp = async () => {
-    if (otp.length !== 6) return;
-    const contactVal = form.getValues('contact');
-    setIsVerifyingOtp(true);
-    try {
-      const isEmail = contactVal.includes('@');
-      const method = isEmail ? 'email' : 'sms';
-      const payload = {
-        [isEmail ? 'email' : 'phone']: contactVal,
-        otp,
-        method
-      };
-      await axios.post(`${config.apiUrl}/otp/verify`, payload);
-      setIsContactVerified(true);
-      setIsOtpSent(false); // hide otp fields
-      toast({ title: 'Verified!', description: 'Contact details verified successfully.' });
-    } catch (e: any) {
-      toast({ title: 'Invalid OTP', description: e.response?.data?.message || 'Code verification failed', variant: 'destructive' });
-    } finally {
-      setIsVerifyingOtp(false);
-    }
-  };
   
   // Check for waitlist data on mount
   useEffect(() => {
@@ -566,69 +511,16 @@ const ClaimFormPage = () => {
                             render={({ field }) => (
                               <FormItem className="md:col-span-2 lg:col-span-1">
                                 <FormLabel>Email or Phone Number</FormLabel>
-                                <div className="flex flex-col gap-2">
-                                  <div className="flex gap-2">
-                                    <FormControl>
-                                      <Input 
-                                        placeholder="john@example.com or 9876543210" 
-                                        {...field} 
-                                        disabled={isContactVerified}
-                                        onChange={(e) => {
-                                          if (isContactVerified) setIsContactVerified(false);
-                                          field.onChange(e);
-                                        }}
-                                      />
-                                    </FormControl>
-                                    {!isContactVerified ? (
-                                      <Button 
-                                        type="button" 
-                                        variant="outline"
-                                        onClick={handleSendOtp}
-                                        disabled={isSendingOtp || !field.value || !!form.formState.errors.contact}
-                                      >
-                                        {isSendingOtp ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
-                                      </Button>
-                                    ) : (
-                                      <div className="flex items-center text-green-600 bg-green-50 px-3 py-2 rounded-md border border-green-200">
-                                        <CheckCircle className="h-4 w-4 mr-1" /> Confirmed
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
+                                <FormControl>
+                                  <Input 
+                                    placeholder="john@example.com or 9876543210" 
+                                    {...field} 
+                                  />
+                                </FormControl>
                                 <FormMessage />
                               </FormItem>
                             )}
                           />
-                        )}
-
-                        {isQrCodeClaim && isOtpSent && !isContactVerified && (
-                          <div className="bg-blue-50 p-4 rounded-md space-y-3 col-span-1 md:col-span-2 shadow-sm border border-blue-100 mt-2">
-                            <Label className="text-blue-900">Enter Verification Code</Label>
-                            <div className="flex gap-3 max-w-sm">
-                              <Input 
-                                placeholder="6-digit OTP" 
-                                maxLength={6} 
-                                value={otp}
-                                className="tracking-widest font-mono text-center"
-                                onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                              />
-                              <Button 
-                                type="button"
-                                className="bg-blue-600 hover:bg-blue-700"
-                                onClick={handleVerifyOtp}
-                                disabled={otp.length !== 6 || isVerifyingOtp}
-                              >
-                                {isVerifyingOtp ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm'}
-                              </Button>
-                            </div>
-                            <div className="flex items-center gap-2 pt-1 text-sm">
-                              {countdown > 0 ? (
-                                <span className="text-gray-500">Resend code in {countdown}s</span>
-                              ) : (
-                                <Button type="button" variant="link" className="p-0 h-auto text-blue-600" onClick={handleSendOtp}>Resend OTP</Button>
-                              )}
-                            </div>
-                          </div>
                         )}
 
                         {isQrCodeClaim && (
@@ -645,10 +537,6 @@ const ClaimFormPage = () => {
                                     s.selectedCities.forEach((city: string) => locations.add(city));
                                   }
                                 });
-                              }
-                              
-                              if ((cause as any)?.sponsor?.selectedCities) {
-                                (cause as any).sponsor.selectedCities.forEach((city: string) => locations.add(city));
                               }
                               
                               const locationOptions = Array.from(locations).sort();
@@ -768,7 +656,7 @@ const ClaimFormPage = () => {
                           type="submit" 
                           size="lg"
                           className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white"
-                          disabled={form.formState.isSubmitting || (isQrCodeClaim && !isContactVerified)}
+                          disabled={form.formState.isSubmitting}
                         >
                           {form.formState.isSubmitting ? (
                             <>
@@ -852,7 +740,7 @@ const ClaimFormPage = () => {
                   {isQrCodeClaim ? (
                     <div className="bg-green-50 border border-green-100 rounded p-4 text-sm text-green-800">
                       <p>
-                        <span className="font-semibold">QR Code Claim:</span> After email or phone verification, your claim will be automatically verified and you can collect your tote immediately.
+                        <span className="font-semibold">QR Code Claim:</span> Your claim will be automatically verified and you can collect your tote immediately.
                       </p>
                     </div>
                   ) : (

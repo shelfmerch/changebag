@@ -90,16 +90,11 @@ const QrClaimConfirmedPage = () => {
                   {/* Thank You Message */}
                   <div className="space-y-4">
                     <h2 className="text-2xl font-semibold text-gray-900">
-                      Thank You! 🎉
+                      You have successfully claimed a tote
                     </h2>
                     
                     <p className="text-lg text-gray-700 leading-relaxed">
-                      Your tote claim for <span className="font-semibold text-green-600">{causeTitle}</span> has been 
-                      <span className="font-bold text-green-600"> automatically verified</span> and is ready for collection.
-                    </p>
-                    
-                    <p className="text-gray-600">
-                      You can collect your tote immediately from the distribution point where you scanned the QR code.
+                      Thank you for supporting <span className="font-semibold text-green-600">{causeTitle}</span> cause. You are a proud citizen helping the world...
                     </p>
                   </div>
 
@@ -162,17 +157,7 @@ const QrClaimConfirmedPage = () => {
                       size="lg"
                     >
                       <Home className="h-5 w-5 mr-2" />
-                      Go to Homepage
-                    </Button>
-                    
-                    <Button 
-                      onClick={handleViewOtherCauses}
-                      variant="outline"
-                      className="flex-1"
-                      size="lg"
-                    >
-                      <Package className="h-5 w-5 mr-2" />
-                      View Other Causes
+                      Know more about changeBag
                     </Button>
                   </div>
                 </div>
