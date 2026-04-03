@@ -335,6 +335,7 @@ const ClaimFormPage = () => {
       const claimDataToSubmit = {
         causeId: id,
         causeTitle: cause?.title,
+        sponsorName: cause?.sponsor?.organization || cause?.sponsor?.name || 'an anonymous sponsor',
         fullName: data.fullName,
         email: emailVal,
         phone: phoneVal,
@@ -395,7 +396,7 @@ const ClaimFormPage = () => {
   if (error || !cause) {
     return (
       <Layout>
-        <div className="container mx-auto px-4 py-8 text-center">
+        <div className="container mx-auto px-4 pt-28 pb-12 md:py-16 text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">Error Loading Cause</h1>
           <p className="text-gray-600 mb-4">Unable to load the cause information. Please try again later.</p>
           <Button variant="outline" onClick={() => navigate(-1)}>Go Back</Button>
@@ -417,7 +418,7 @@ const ClaimFormPage = () => {
   if (!isAvailable) {
     return (
       <Layout>
-        <div className="container mx-auto px-4 py-8 text-center">
+        <div className="container mx-auto px-4 pt-28 pb-12 md:py-16 text-center">
           <h1 className="text-2xl font-bold text-yellow-600 mb-4">Claim Not Yet Available</h1>
           <p className="text-gray-600 mb-4">Claims for this cause will soon be available.</p>
           <Button variant="outline" onClick={() => navigate('/causes')}>View Other Causes</Button>
@@ -434,7 +435,7 @@ const ClaimFormPage = () => {
     if (totalTotes === 0) {
       return (
         <Layout>
-          <div className="container mx-auto px-4 py-8 text-center">
+          <div className="container mx-auto px-4 pt-28 pb-12 md:py-16 text-center">
             <h1 className="text-2xl font-bold text-yellow-600 mb-4">Claim Not Yet Available</h1>
             <p className="text-gray-600 mb-4">Claims for this cause will soon be available.</p>
             <Button variant="outline" onClick={() => navigate('/causes')}>View Other Causes</Button>
@@ -445,7 +446,7 @@ const ClaimFormPage = () => {
     
     return (
       <Layout>
-        <div className="container mx-auto px-4 py-8 text-center">
+        <div className="container mx-auto px-4 pt-28 pb-12 md:py-16 text-center">
           <h1 className="text-2xl font-bold text-yellow-600 mb-4">No Totes Available</h1>
           <p className="text-gray-600 mb-4">All totes for this cause have been claimed.</p>
           <Button variant="outline" onClick={() => navigate(`/waitlist/${id}`)}>Join Waitlist</Button>
@@ -457,7 +458,7 @@ const ClaimFormPage = () => {
   
   return (
     <Layout>
-      <div className="bg-primary-50 py-10">
+      <div className="bg-primary-50 min-h-screen pt-28 pb-12 md:py-20">
         <div className="container mx-auto px-4">
           <Button 
             variant="ghost" 

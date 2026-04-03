@@ -124,7 +124,7 @@ export const sendOTP = async (req: Request, res: Response) => {
         method: 'sms'
       });
     } else {
-      return res.status(400).json({ message: 'Invalid verification method. Use "sms"' });
+      return res.status(400).json({ message: 'Invalid verification method. Use "email" or "sms"' });
     }
   } catch (error) {
     console.error('=== ERROR IN SEND OTP ===');
@@ -257,7 +257,7 @@ export const verifyOTP = async (req: Request, res: Response) => {
         method: 'sms'
       });
     } else {
-      return res.status(400).json({ message: 'Invalid verification method. Use "sms"' });
+      return res.status(400).json({ message: 'Invalid verification method. Use "email" or "sms"' });
     }
   } catch (error) {
     console.error('Error verifying OTP:', error);

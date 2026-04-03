@@ -43,9 +43,9 @@ const ClaimConfirmedPage = () => {
             <Check className="h-8 w-8 text-green-600" />
           </div>
           
-          <h1 className="text-3xl font-bold mb-2">Claim Confirmed!</h1>
+          <h1 className="text-3xl font-bold mb-2">You have successfully claimed a tote</h1>
           <p className="text-lg text-gray-700">
-            Your tote claim for {formData?.causeTitle || 'this cause'} has been successfully processed
+            Thank you for supporting {formData?.causeTitle || 'this cause'}
           </p>
         </div>
       </div>
@@ -96,18 +96,12 @@ const ClaimConfirmedPage = () => {
           </CardContent>
         </Card>
         
-        <div className="flex flex-col md:flex-row gap-4 justify-between">
+        <div className="flex flex-col md:flex-row gap-4 justify-center items-center mt-8">
           <Button 
-            variant="outline"
-            onClick={() => navigate(`/claim/status/${claimId}`)}
+            className="w-full md:w-3/4 lg:w-1/2 bg-green-600 hover:bg-green-700 py-6 text-lg"
+            onClick={() => navigate('/')}
           >
-            Track Your Claim
-          </Button>
-          
-          <Button 
-            onClick={() => navigate('/causes')}
-          >
-            Browse More Causes
+            Know more about changeBag
           </Button>
         </div>
         

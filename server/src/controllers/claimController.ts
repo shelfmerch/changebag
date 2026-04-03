@@ -10,6 +10,7 @@ export const createClaim = async (req: Request, res: Response): Promise<void> =>
     const {
       causeId,
       causeTitle,
+      sponsorName = 'a sponsor',
       fullName,
       email,
       phone,
@@ -116,32 +117,51 @@ export const createClaim = async (req: Request, res: Response): Promise<void> =>
     if (email && email.trim() !== '') {
       try {
         const currentYear = new Date().getFullYear();
-        const claimDate = new Date().toLocaleDateString();
-      const subject = `Your ChangeBag Tote Claim Confirmation - ${causeTitle}`;
-      const htmlContent = `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
-          <h2 style="color: #10b981; border-bottom: 2px solid #10b981; padding-bottom: 10px;">Tote Claim Received!</h2>
-          <p>Hi ${fullName},</p>
-          <p>Congratulations! Your claim for a <strong>${causeTitle}</strong> tote bag has been successfully received.</p>
-          <p>Our team is currently verifying the details. You will receive another update as soon as your tote has been shipped.</p>
-          <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 25px 0; border: 1px solid #e5e7eb;">
-            <p style="margin: 0 0 10px 0; font-weight: bold; color: #111827;">Claim Details:</p>
-            <ul style="padding-left: 20px; color: #4b5563; margin: 0;">
-              <li style="margin-bottom: 5px;"><strong>Cause:</strong> ${causeTitle}</li>
-              <li style="margin-bottom: 5px;"><strong>Status:</strong> Pending Verification</li>
-              <li><strong>Date:</strong> ${claimDate}</li>
-            </ul>
+        const subject = `Your ChangeBag Tote Claim Confirmation`;
+        const htmlContent = `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
+            <p>Hi,</p>
+            <p>Thank you for stepping forward and supporting the <strong>${causeTitle}</strong> cause.</p>
+            <p>By claiming your tote, you've done more than just take a bag—you've chosen to stand for something bigger. You are now a proud citizen helping drive real change, and that matters more than you know.</p>
+            <p>This initiative is powered by <strong>${sponsorName}</strong> that believed in the cause—but it's people like you who truly bring it to life.</p>
+            <p>Every small action adds up. And today, yours did.</p>
+            <p>We're proud to have you as part of this movement.</p>
+            <p>Your tote claim has been verified and is ready for collection. Scan the qr for more details.</p>
+            <p>With gratitude,<br/>Team ChangeBag</p>
+            <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+            <p style="font-size: 12px; color: #9ca3af; text-align: center;">&copy; ${currentYear} ChangeBag. Brand For Good.</p>
           </div>
-          <p>Thank you for supporting this cause and choosing a sustainable alternative to single-use bags!</p>
-          <p style="margin-top: 30px;">Best regards,<br><strong>The ChangeBag Team</strong></p>
-          <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
-          <p style="font-size: 12px; color: #9ca3af; text-align: center;">If you did not make this claim or have any questions, please contact us at support@changebag.com.</p>
-          <p style="font-size: 12px; color: #9ca3af; text-align: center;">&copy; ${currentYear} ChangeBag. Brand For Good.</p>
-        </div>
-      `;
-      await sendEmail(email, subject, htmlContent);
+        `;
+        await sendEmail(email, subject, htmlContent);
       } catch (emailError) {
         console.error('Error sending claim confirmation email:', emailError);
+      }
+    } else if (phone && phone.trim() !== '') {
+      try {
+        const smsText = `Hi,
+Thank you for stepping forward and supporting the ${causeTitle} cause.
+By claiming your tote, you've done more than just take a bag—you've chosen to stand for something bigger. You are now a proud citizen helping drive real change, and that matters more than you know.
+This initiative is powered by ${sponsorName} that believed in the cause—but it's people like you who truly bring it to life.
+Every small action adds up. And today, yours did.
+We're proud to have you as part of this movement.
+Your tote claim has been verified and is ready for collection. Scan the qr for more details.
+With gratitude,
+Team ChangeBag`;
+        
+        if (process.env.MSG91_AUTH_KEY) {
+          const formattedPhone = phone.trim().replace(/\D/g, '');
+          const axios = require('axios');
+          await axios.post('https://control.msg91.com/api/sendhttp.php', {
+            authkey: process.env.MSG91_AUTH_KEY,
+            mobile: formattedPhone.length === 10 ? `91${formattedPhone}` : formattedPhone,
+            message: smsText,
+            sender: process.env.MSG91_SENDER_ID || 'TXTLCL'
+          }, {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+          });
+        }
+      } catch (smsError) {
+        console.error('Error sending claim confirmation SMS:', smsError);
       }
     }
 

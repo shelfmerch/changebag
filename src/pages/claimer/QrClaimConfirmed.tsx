@@ -155,10 +155,10 @@ const QrClaimConfirmedPage = () => {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-4 pt-6">
+                  <div className="flex flex-col sm:flex-row gap-4 pt-6 justify-center">
                     <Button 
-                      onClick={handleGoHome}
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => navigate('/')}
+                      className="w-full sm:w-3/4 bg-green-600 hover:bg-green-700 text-white"
                       size="lg"
                     >
                       <Home className="h-5 w-5 mr-2" />
