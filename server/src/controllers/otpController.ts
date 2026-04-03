@@ -97,26 +97,7 @@ export const sendOTP = async (req: Request, res: Response) => {
       console.log('Original phone:', phone);
       console.log('Formatted phone for SMS OTP:', formattedPhone);
 
-      // Check if there's a recent OTP that's not expired yet (within the last 2 minutes)
-      const twoMinutesAgo = new Date();
-      twoMinutesAgo.setMinutes(twoMinutesAgo.getMinutes() - 2);
-      
-      console.log('Checking for recent OTPs...');
-      const recentOTP = await OTPVerification.findOne({
-        phone: formattedPhone,
-        type: 'sms',
-        expiresAt: { $gt: new Date() },
-        createdAt: { $gt: twoMinutesAgo }
-      });
-      
-      if (recentOTP) {
-        console.log('Recent OTP already exists for this phone. Returning existing OTP info.');
-        return res.status(200).json({
-          message: 'OTP already sent. Please check your phone or wait before requesting a new code.',
-          phone: formattedPhone,
-          method: 'sms'
-        });
-      }
+      await OTPVerification.deleteMany({ phone: formattedPhone, type: 'sms' });
 
       // Generate OTP
       const otp = generateOTP();
@@ -268,68 +249,41 @@ export const verifyOTP = async (req: Request, res: Response) => {
       }
       console.log('Formatted phone for SMS OTP verification:', formattedPhone);
 
-      // Find all OTP records for this phone
-      const allRecords = await OTPVerification.find({ phone: formattedPhone, type: 'sms' });
-      console.log(`Found ${allRecords.length} OTP records for phone:`, formattedPhone);
-      
-      if (allRecords.length === 0) {
+      const latest = await OTPVerification.findOne({
+        phone: formattedPhone,
+        type: 'sms'
+      }).sort({ createdAt: -1 });
+
+      if (!latest) {
         console.log('No OTP records found for this phone');
         return res.status(400).json({ message: 'No verification code was sent to this phone' });
       }
-      
-      // Check each record
-      let matchFound = false;
-      let expiredFound = false;
-      let verifiedFound = false;
-      
-      // Calculate the hash of the provided OTP
+
       const hashedOTP = hashOTP(otp);
       console.log('Hashed SMS OTP from request:', hashedOTP);
-      
-      for (const record of allRecords) {
-        console.log('Checking SMS record:', {
-          id: record._id,
-          storedHash: record.otp,
-          expiresAt: record.expiresAt,
-          verified: record.verified,
-          now: new Date()
-        });
-        
-        if (record.otp === hashedOTP) {
-          matchFound = true;
-          
-          if (record.verified) {
-            verifiedFound = true;
-            console.log('SMS OTP already verified');
-          } else if (record.expiresAt < new Date()) {
-            expiredFound = true;
-            console.log('SMS OTP expired');
-          } else {
-            // Valid OTP found
-            console.log('Valid SMS OTP found, marking as verified');
-            record.verified = true;
-            await record.save();
-            
-            return res.status(200).json({
-              message: 'Phone verified successfully',
-              phone,
-              method: 'sms'
-            });
-          }
-        }
-      }
-      
-      // Determine the appropriate error message
-      if (!matchFound) {
-        console.log('No matching SMS OTP found');
-        return res.status(400).json({ message: 'Invalid verification code' });
-      } else if (expiredFound) {
-        return res.status(400).json({ message: 'Verification code has expired' });
-      } else if (verifiedFound) {
+
+      if (latest.verified) {
+        console.log('SMS OTP already verified');
         return res.status(400).json({ message: 'Verification code has already been used' });
       }
-      
-      return res.status(400).json({ message: 'Invalid or expired verification code' });
+      if (latest.expiresAt <= new Date()) {
+        console.log('SMS OTP expired');
+        return res.status(400).json({ message: 'Verification code has expired' });
+      }
+      if (latest.otp !== hashedOTP) {
+        console.log('Provided OTP does not match latest issued code');
+        return res.status(400).json({ message: 'Invalid verification code' });
+      }
+
+      console.log('Valid SMS OTP found, marking as verified');
+      latest.verified = true;
+      await latest.save();
+
+      return res.status(200).json({
+        message: 'Phone verified successfully',
+        phone,
+        method: 'sms'
+      });
     } else {
       return res.status(400).json({ message: 'Invalid verification method. Use "sms"' });
     }
