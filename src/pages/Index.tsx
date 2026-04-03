@@ -179,7 +179,7 @@ function calcCPM(b: number): string {
 }
 function formatBagCount(b: number): string {
   if (b >= 100_000) return '1 Lakh';
-  if (b >= 1_000) return `${(b / 1_000).toFixed(b % 1_000 === 0 ? 0 : 1)},000`;
+  if (b >= 1_000) return `${(b / 1_000).toFixed(b % 1_000 === 0 ? 0 : 1)}000`;
   return String(b);
 }
 function computeCalc(bags: number): CalcState {

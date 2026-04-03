@@ -83,6 +83,19 @@ const CauseSelectionStep = ({
       return;
     }
 
+    // Bypass verification on localhost
+    if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+      if (type === 'email') {
+        setEmailStatus('verified');
+        setShowEmailOtp(false);
+      } else {
+        setPhoneStatus('verified');
+        setShowPhoneOtp(false);
+      }
+      toast({ title: "Verified", description: "Bypassed verification on localhost for " + type });
+      return;
+    }
+
     try {
       if (type === 'email') setIsSendingEmail(true);
       else setIsSendingPhone(true);
