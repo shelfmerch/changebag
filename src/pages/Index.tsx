@@ -171,7 +171,7 @@ function citiesFromBags(b: number): string {
   if (b <= 25_000) return '10–20 cities';
   if (b <= 50_000) return '25–50 cities';
   return '100+ cities';
-}
+} 
 function calcCPM(b: number): string {
   if (b >= 50_000) return '₹0.03';
   if (b >= 10_000) return '₹0.05';

@@ -45,7 +45,6 @@ const OnboardingWizard = ({
     numberOfTotes: 50,
     logoUrl: '',
     message: '',
-    companyUrl: '',
     distributionPoints: {} as {
       [city: string]: {
         malls: { name: string; totes: number; selected: boolean }[];

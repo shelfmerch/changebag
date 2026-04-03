@@ -54,7 +54,6 @@ interface LogoUploadStepProps {
   formData: {
     logoUrl: string;
     message: string;
-    companyUrl?: string;
     selectedCause?: string;
     causeImageUrl?: string;
     logoPosition?: LogoPosition;
@@ -68,7 +67,6 @@ interface LogoUploadStepProps {
   updateFormData: (data: Partial<{
     logoUrl: string;
     message: string;
-    companyUrl?: string;
     logoPosition?: LogoPosition;
     causeImagePosition?: {
       x: number;
@@ -889,51 +887,38 @@ const LogoUploadStep = ({ formData, updateFormData, validationError }: LogoUploa
                   )}
                 </div>
                 
-                {/* {selectedCauseData?.adminImageUrl && (
+                {selectedCauseData?.adminImageUrl && (
                   <div className="mt-3 p-3 bg-blue-50 rounded-md">
                     <p className="text-sm text-blue-800">
                       Admin logo for "{selectedCauseData?.title}"
                     </p>
                   </div>
-                )} */}
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Details Section */}
+        {/* Message Section */}
         <Card>
           <CardHeader>
-            <CardTitle>Sponsorship Details</CardTitle>
+            <CardTitle>Sponsorship Message</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
             <div className="space-y-2">
-              <Label htmlFor="companyUrl">Company URL (for QR Code)</Label>
-              <Input
-                id="companyUrl"
-                type="url"
-                placeholder="https://yourcompany.com"
-                value={formData.companyUrl || ''}
-                onChange={(e) => updateFormData({ companyUrl: e.target.value })}
-              />
-              <p className="text-sm text-gray-500">
-                Add a URL which will be used to generate a QR code advertising your company.
-              </p>
-            </div>
-
-            {/* <div className="space-y-2">
               <Label htmlFor="message">Your message (optional)</Label>
               <Textarea
-                id="message"
-                placeholder="Add a personal message to accompany your sponsorship..."
-                value={formData.message}
+                id="imageUrl"
+                type="url"
+                placeholder="https://example.com/image.jpg"
+                value={formData.imageUrl}
                 onChange={handleMessageChange}
                 rows={3}
               />
               <p className="text-sm text-gray-500">
                 This message will be displayed with your logo on the tote bag.
               </p>
-            </div> */}
+            </div>
           </CardContent>
         </Card>
       </div>
