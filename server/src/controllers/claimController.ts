@@ -27,13 +27,20 @@ export const createClaim = async (req: Request, res: Response): Promise<void> =>
     } = req.body;
 
     // Check if user has already claimed a tote for this cause
-    const existingClaim = await Claim.findOne({
-      email: email,
-      causeId: causeId
-    });
+    const queryConditions: any[] = [];
+    if (email && email.trim() !== '') queryConditions.push({ email });
+    if (phone && phone.trim() !== '') queryConditions.push({ phone });
+
+    let existingClaim = null;
+    if (queryConditions.length > 0) {
+      existingClaim = await Claim.findOne({
+        causeId,
+        $or: queryConditions
+      });
+    }
     
     if (existingClaim) {
-      console.log('Duplicate claim detected for email:', email);
+      console.log('Duplicate claim detected for contact');
       res.status(400).json({
         message: 'You have already claimed a tote for this cause. Each user can claim only one tote per cause.'
       });
@@ -105,10 +112,11 @@ export const createClaim = async (req: Request, res: Response): Promise<void> =>
       $inc: { claimedTotes: 1, availableTotes: -1 }
     });
     
-    // Send confirmation email
-    try {
-      const currentYear = new Date().getFullYear();
-      const claimDate = new Date().toLocaleDateString();
+    // Send confirmation email if email is provided
+    if (email && email.trim() !== '') {
+      try {
+        const currentYear = new Date().getFullYear();
+        const claimDate = new Date().toLocaleDateString();
       const subject = `Your ChangeBag Tote Claim Confirmation - ${causeTitle}`;
       const htmlContent = `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
@@ -132,8 +140,9 @@ export const createClaim = async (req: Request, res: Response): Promise<void> =>
         </div>
       `;
       await sendEmail(email, subject, htmlContent);
-    } catch (emailError) {
-      console.error('Error sending claim confirmation email:', emailError);
+      } catch (emailError) {
+        console.error('Error sending claim confirmation email:', emailError);
+      }
     }
 
     res.status(201).json(claim);

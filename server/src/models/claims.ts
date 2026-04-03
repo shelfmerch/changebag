@@ -82,11 +82,11 @@ const claimSchema = new Schema<IClaim>(
     },
     email: {
       type: String,
-      required: true
+      required: false
     },
     phone: {
       type: String,
-      required: true
+      required: false
     },
     // purpose: {
     //   type: String,
