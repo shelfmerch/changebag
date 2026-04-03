@@ -67,9 +67,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const verifyOtp = async (identifier: string, otp: string): Promise<AuthResult> => {
     try {
+      const storedToken = localStorage.getItem('token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (storedToken) {
+        headers['Authorization'] = `Bearer ${storedToken}`;
+      }
       const response = await fetch(getApiUrl('/auth/verify-otp'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         credentials: 'include',
         body: JSON.stringify({ identifier, otp })
       });
