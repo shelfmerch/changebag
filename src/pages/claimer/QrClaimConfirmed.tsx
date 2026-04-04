@@ -60,117 +60,115 @@ const QrClaimConfirmedPage = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-white">
-        <div className="container mx-auto px-4 py-16">
-          <div className="max-w-2xl mx-auto">
+      <div className="min-h-screen bg-gradient-to-b from-[#f8faf9] to-[#ffffff] relative overflow-hidden">
+        {/* Decorative background elements from home theme */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-green-100/30 rounded-full blur-[120px] -mr-48 -mt-48" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-green-100/20 rounded-full blur-[120px] -ml-48 -mb-48" />
+
+        <div className="container mx-auto px-4 pt-28 pb-16 relative z-10">
+          <div className="max-w-3xl mx-auto">
             {/* Success Header */}
-            <div className="text-center mb-8">
-              <div className="flex justify-center mb-6">
-                <div className="bg-green-100 p-4 rounded-full">
-                  <CheckCircle className="h-12 w-12 text-green-600" />
+            <div className="text-center mb-12">
+              <div className="flex justify-center mb-8">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-green-200 animate-pulse rounded-full blur-xl opacity-50" />
+                  <div className="relative bg-white p-5 rounded-full shadow-xl border border-green-50">
+                    <CheckCircle className="h-14 w-14 text-[#0d3d22]" strokeWidth={1.5} />
+                  </div>
                 </div>
               </div>
               
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <QrCode className="h-6 w-6 text-green-600" />
-                <h1 className="text-3xl font-bold text-gray-900">
-                  QR Code Claim Confirmed!
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className="text-[10px] font-bold tracking-[0.2em] uppercase text-green-600/80 bg-green-50 px-3 py-1 rounded-full border border-green-100">
+                    Claim Verified
+                  </span>
+                </div>
+                <h1 className="text-4xl md:text-5xl font-bold text-[#1a1a14] tracking-tight">
+                  You have successfully <br />
+                  <em className="font-serif italic font-normal text-[#0d3d22]">claimed a tote.</em>
                 </h1>
+                <p className="text-lg text-[#6b6b58] max-w-lg mx-auto">
+                  Thank you for supporting <span className="font-semibold text-[#0d3d22]">{causeTitle}</span>. You are now a proud citizen driving real change.
+                </p>
               </div>
-              
-              <p className="text-xl text-gray-600">
-                Thank you for claiming your tote via QR code
-              </p>
             </div>
 
             {/* Main Content Card */}
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardContent className="p-8">
-                <div className="text-center space-y-6">
-                  {/* Thank You Message */}
-                  <div className="space-y-4">
-                    <h2 className="text-2xl font-semibold text-gray-900">
-                      You have successfully claimed a tote
-                    </h2>
-                    
-                    <p className="text-lg text-gray-700 leading-relaxed">
-                      Thank you for supporting <span className="font-semibold text-green-600">{causeTitle}</span> cause. You are a proud citizen helping the world...
-                    </p>
-                  </div>
-
-                  {/* Collection Info */}
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                    <div className="flex items-center justify-center gap-3 mb-3">
-                      <Package className="h-6 w-6 text-green-600" />
-                      <h3 className="text-lg font-semibold text-green-800">
-                        Ready for Collection
+            <Card className="shadow-[0_20px_50px_rgba(0,0,0,0.04)] border-0 bg-white/70 backdrop-blur-md rounded-3xl overflow-hidden">
+              <CardContent className="p-10 md:p-12">
+                <div className="text-center space-y-10">
+                  {/* Visual Confirmation */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
+                    <div className="p-6 bg-[#f0f7f4] rounded-2xl border border-green-50 relative overflow-hidden group">
+                      {/* <div className="absolute top-0 right-0 p-4 opacity-5">
+                        <QrCode className="h-24 w-24" />
+                      </div> */}
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-green-800 mb-4 flex items-center gap-2">
+                         <div className="w-1.5 h-1.5 bg-green-600 rounded-full" />
+                         Automatic Verification
                       </h3>
+                      <p className="text-gray-700 leading-relaxed font-medium">
+                        Your claim has been verified and is ready for collection at this distribution point.
+                      </p>
                     </div>
-                    
-                    <div className="space-y-2 text-sm text-green-700">
-                      <p>• Your claim has been automatically verified</p>
-                      <p>• No shipping or delivery required</p>
-                      <p>• Collect your tote at the QR code location</p>
-                      <p>• Show your confirmation email if requested</p>
+
+                    <div className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-[#6b6b58] mb-4 flex items-center gap-2">
+                         <div className="w-1.5 h-1.5 bg-gray-400 rounded-full" />
+                         Next Steps
+                      </h3>
+                      <ul className="space-y-3 text-sm text-gray-600">
+                        <li className="flex gap-2">
+                          <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                          <span>Show this screen to the distribution partner</span>
+                        </li>
+                        <li className="flex gap-2">
+                          <CheckCircle className="h-4 w-4 text-green-500 shrink-0 mt-0.5" />
+                          <span>Check your inbox for a confirmation mail</span>
+                        </li>
+                      </ul>
                     </div>
                   </div>
 
-                  {/* Claimer Details */}
-                  {/* <div className="bg-gray-50 rounded-lg p-4 text-left">
-                    <h4 className="font-medium text-gray-900 mb-3">Claim Details:</h4>
-                    <div className="space-y-2 text-sm text-gray-600">
-                      <p><span className="font-medium">Name:</span> {claimData.fullName}</p>
-                      <p><span className="font-medium">Email:</span> {claimData.email}</p>
-                      <p><span className="font-medium">Phone:</span> {claimData.phone}</p>
-                      <p><span className="font-medium">Purpose:</span> {claimData.purpose}</p>
-                    </div>
-                  </div> */}
-
-                  {/* Next Steps */}
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      What's Next?
-                    </h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <h4 className="font-medium text-blue-800 mb-2">📱 Check Your Email</h4>
-                        <p className="text-blue-700">
-                          You'll receive a confirmation email with your claim details.
-                        </p>
-                      </div>
+                  {/* Call to Action Section */}
+                  <div className="pt-6 border-t border-gray-100">
+                    <div className="space-y-6">
+                      <Button 
+                        onClick={() => navigate('/')}
+                        className="w-full bg-[#0d3d22] hover:bg-[#1a1a14] text-white py-8 rounded-2xl text-lg font-semibold transition-all shadow-lg hover:shadow-xl hover:-translate-y-1"
+                      >
+                        Know more about ChangeBag
+                      </Button>
                       
-                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                        <h4 className="font-medium text-purple-800 mb-2">🎒 Collect Your Tote</h4>
-                        <p className="text-purple-700">
-                          Visit the QR code location to collect your tote bag.
-                        </p>
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        <Button 
+                          onClick={() => navigate('/causes')}
+                          variant="outline"
+                          className="flex-1 py-6 rounded-2xl border-gray-200 hover:bg-gray-50 text-gray-700 font-medium"
+                        >
+                          Browse more Causes
+                        </Button>
+                        
+                        <Button 
+                          onClick={() => navigate('/causes')}
+                          variant="outline"
+                          className="flex-1 py-6 rounded-2xl border-gray-200 hover:bg-gray-50 text-gray-700 font-medium"
+                        >
+                          Become a Sponsor
+                        </Button>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-4 pt-6 justify-center">
-                    <Button 
-                      onClick={() => navigate('/')}
-                      className="w-full sm:w-3/4 bg-green-600 hover:bg-green-700 text-white"
-                      size="lg"
-                    >
-                      <Home className="h-5 w-5 mr-2" />
-                      Know more about changeBag
-                    </Button>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Additional Info */}
-            <div className="mt-8 text-center">
-              <p className="text-sm text-gray-500">
-                Questions about your claim? Contact us at{' '}
-                <a href="mailto:support@shelfmerch.com" className="text-green-600 hover:text-green-700">
-                  support@changebag.org
-                </a>
+            {/* Support Footer */}
+            <div className="mt-12 text-center">
+              <p className="text-sm text-[#6b6b58]">
+                Questions about your claim? <br />
+                Email us at <a href="mailto:support@changebag.org" className="text-[#0d3d22] font-semibold underline underline-offset-4">support@changebag.org</a>
               </p>
             </div>
           </div>

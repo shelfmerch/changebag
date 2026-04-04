@@ -277,10 +277,13 @@ const ClaimFormPage = () => {
         phoneVal = isEmail ? '' : data.contact;
       }
 
+      const approvedSponsorship = cause?.sponsorships?.find((s: any) => s.status === 'approved');
+      const sponsorNameVal = approvedSponsorship?.organizationName || cause?.sponsor?.organization || cause?.sponsor?.name || 'an anonymous sponsor';
+
       const claimDataToSubmit = {
         causeId: id,
         causeTitle: cause?.title,
-        sponsorName: cause?.sponsor?.organization || cause?.sponsor?.name || 'an anonymous sponsor',
+        sponsorName: sponsorNameVal,
         fullName: data.fullName,
         email: emailVal,
         phone: phoneVal,
@@ -298,6 +301,10 @@ const ClaimFormPage = () => {
       };
 
       const response = await axios.post(`${config.apiUrl}/claims`, claimDataToSubmit);
+      
+      // Save data for confirmation page
+      sessionStorage.setItem('claimFormData', JSON.stringify(claimDataToSubmit));
+      sessionStorage.setItem('verificationComplete', 'true');
       
       if (response.status === 201) {
         if (isQrCodeClaim) {
